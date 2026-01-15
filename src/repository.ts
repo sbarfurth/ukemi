@@ -113,7 +113,7 @@ async function getConfigArgs(
 }
 
 /**
- * If jjk.commandTimeout is set, returns that value.
+ * If ukemi.commandTimeout is set, returns that value.
  * Otherwise, returns the provided default timeout, or 30 seconds if no default is provided.
  */
 function getCommandTimeout(
@@ -121,7 +121,7 @@ function getCommandTimeout(
   defaultTimeout: number | undefined,
 ): number {
   const config = vscode.workspace.getConfiguration(
-    "jjk",
+    "ukemi",
     vscode.Uri.file(repositoryRoot),
   );
   const configuredTimeout = config.get<number | null>("commandTimeout");
@@ -139,7 +139,7 @@ async function getJJPath(
   workspaceFolder: string,
 ): Promise<{ filepath: string; source: "configured" | "path" | "common" }> {
   const config = vscode.workspace.getConfiguration(
-    "jjk",
+    "ukemi",
     workspaceFolder !== undefined
       ? vscode.Uri.file(workspaceFolder)
       : undefined,
@@ -151,7 +151,7 @@ async function getJJPath(
       return { filepath: configuredPath, source: "configured" };
     } else {
       throw new Error(
-        `Configured jjk.jjPath is not an executable file: ${configuredPath}`,
+        `Configured ukemi.jjPath is not an executable file: ${configuredPath}`,
       );
     }
   }
@@ -326,7 +326,9 @@ export class WorkspaceSourceControlManager {
           .toString()
           .trim();
 
-        const repoUri = vscode.Uri.file(repoRoot.replace(/^\\\\\?\\UNC\\/, "\\\\")).toString();
+        const repoUri = vscode.Uri.file(
+          repoRoot.replace(/^\\\\\?\\UNC\\/, "\\\\"),
+        ).toString();
 
         if (!newRepoInfos.has(repoUri)) {
           newRepoInfos.set(repoUri, {
@@ -341,7 +343,7 @@ export class WorkspaceSourceControlManager {
           logger.debug(`No jj repo in ${workspaceFolder.uri.fsPath}`);
         } else {
           logger.error(
-            `Error while initializing jjk in workspace ${workspaceFolder.uri.fsPath}: ${String(e)}`,
+            `Error while initializing ukemi in workspace ${workspaceFolder.uri.fsPath}: ${String(e)}`,
           );
         }
         continue;
@@ -381,7 +383,7 @@ export class WorkspaceSourceControlManager {
         { repoRoot, jjPath, jjVersion, jjConfigArgs },
       ] of newRepoInfos.entries()) {
         logger.info(
-          `Initializing jjk in workspace ${workspaceFolder}. Using ${jjVersion} at ${jjPath.filepath} (${jjPath.source}).`,
+          `Initializing ukemi in workspace ${workspaceFolder}. Using ${jjVersion} at ${jjPath.filepath} (${jjPath.source}).`,
         );
         const repoSCM = new RepositorySourceControlManager(
           repoRoot,
@@ -437,8 +439,14 @@ export class WorkspaceSourceControlManager {
     });
   }
 
-  getRepositorySourceControlManagerFromResourceGroup(resourceGroup: vscode.SourceControlResourceGroup) {
-    return this.repoSCMs.find((repo) => repo.workingCopyResourceGroup === resourceGroup || repo.parentResourceGroups.includes(resourceGroup));
+  getRepositorySourceControlManagerFromResourceGroup(
+    resourceGroup: vscode.SourceControlResourceGroup,
+  ) {
+    return this.repoSCMs.find(
+      (repo) =>
+        repo.workingCopyResourceGroup === resourceGroup ||
+        repo.parentResourceGroups.includes(resourceGroup),
+    );
   }
 
   getResourceGroupFromResourceState(
@@ -901,8 +909,8 @@ export class JJRepository {
   }
 
   async showAll(revsets: string[]) {
-    const revSeparator = "jjkඞ\n";
-    const fieldSeparator = "ඞjjk";
+    const revSeparator = "ukemiඞ\n";
+    const fieldSeparator = "ඞukemi";
     const summarySeparator = "@?!"; // characters that are illegal in filepaths
     const isConflictDetectionSupported = this.jjVersion >= "jj 0.26.0";
     const templateFields = [
@@ -2162,7 +2170,7 @@ async function prepareFakeeditor(): Promise<{
   envVars: { [key: string]: string };
 }> {
   const random = crypto.randomBytes(16).toString("hex");
-  const signalDir = path.join(os.tmpdir(), `jjk-signal-${random}`);
+  const signalDir = path.join(os.tmpdir(), `ukemi-signal-${random}`);
 
   await fs.mkdir(signalDir, { recursive: true });
 

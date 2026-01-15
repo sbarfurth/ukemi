@@ -1,8 +1,8 @@
 {
-  "name": "jjk",
-  "displayName": "Jujutsu Kaizen",
+  "name": "ukemi",
+  "displayName": "ukemi",
   "publisher": "sbarfurth",
-  "description": "Jujutsu (jj) version control system for VS Code",
+  "description": "VSCode extension for the Jujutsu (jj) version control system",
   "icon": "./images/logo.png",
   "version": "0.8.3",
   "engines": {
@@ -13,7 +13,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/sbarfurth/jjk.git"
+    "url": "https://github.com/sbarfurth/ukemi.git"
   },
   "activationEvents": [
     "*",
@@ -415,13 +415,13 @@
     "configuration": {
       "title": "Jujutsu Kaizen",
       "properties": {
-        "jjk.enableAnnotations": {
+        "ukemi.enableAnnotations": {
           "type": "boolean",
           "default": true,
           "description": "Enables in-line blame annotations",
           "scope": "resource"
         },
-        "jjk.commandTimeout": {
+        "ukemi.commandTimeout": {
           "type": [
             "number",
             "null"
@@ -431,7 +431,7 @@
           "scope": "resource",
           "minimum": 1000
         },
-        "jjk.jjPath": {
+        "ukemi.jjPath": {
           "type": "string",
           "default": "",
           "description": "Path to the jj executable. If not set, your PATH and common locations will be searched for a jj executable.",

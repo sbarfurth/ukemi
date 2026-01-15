@@ -15,7 +15,9 @@ async function main() {
     // Passed to --extensionTestsPath
     const extensionTestsPath = path.resolve(__dirname, "./runner.js");
 
-    const testRepoPath = await fs.mkdtemp(path.join(os.tmpdir(), "jjk-test-"));
+    const testRepoPath = await fs.mkdtemp(
+      path.join(os.tmpdir(), "ukemi-test-"),
+    );
 
     console.log(`Creating test repo in ${testRepoPath}`);
     await execJJPromise("init --git", {

@@ -215,7 +215,7 @@ export async function activate(context: vscode.ExtensionContext) {
         return;
       }
       const config = vscode.workspace.getConfiguration(
-        "jjk",
+        "ukemi",
         vscode.Uri.file(repository.repositoryRoot),
       );
       if (!config.get("enableAnnotations")) {
@@ -301,7 +301,7 @@ export async function activate(context: vscode.ExtensionContext) {
         return;
       }
       const config = vscode.workspace.getConfiguration(
-        "jjk",
+        "ukemi",
         vscode.Uri.file(repository.repositoryRoot),
       );
       if (!config.get("enableAnnotations")) {
@@ -1563,7 +1563,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
       if (reposWithWarnings.size > 0) {
         const count = reposWithWarnings.size;
-        statusBarItem.text = `$(warning) JJK Issues (${count})`;
+        statusBarItem.text = `$(warning) ukemi Issues (${count})`;
         statusBarItem.tooltip = "Click to view colocated repository warnings";
         statusBarItem.command = "jj.showColocatedWarnings";
         statusBarItem.show();
