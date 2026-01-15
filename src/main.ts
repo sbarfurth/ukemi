@@ -27,7 +27,7 @@ import { match } from "arktype";
 import { getActiveTextEditorDiff, pathEquals } from "./utils";
 
 export async function activate(context: vscode.ExtensionContext) {
-  const outputChannel = vscode.window.createOutputChannel("Jujutsu Kaizen", {
+  const outputChannel = vscode.window.createOutputChannel("ukemi", {
     log: true,
   });
   const loggerTransport = new LogOutputChannelTransport({

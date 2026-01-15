@@ -413,7 +413,7 @@
       ]
     },
     "configuration": {
-      "title": "Jujutsu Kaizen",
+      "title": "ukemi",
       "properties": {
         "ukemi.enableAnnotations": {
           "type": "boolean",
