@@ -1,0 +1,66 @@
+name: Publish
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.14.1
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.x
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Get metadata
+        id: meta
+        run: |
+          NAME=$(jq -r '.name' package.json)
+          VERSION=$(jq -r '.version' package.json)
+          echo "NAME=$NAME" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "PACKAGE_FILE=${NAME}-${VERSION}.vsix" >> $GITHUB_OUTPUT
+
+      - name: Check if tag exists
+        id: check_tag
+        run: |
+          if git rev-parse "${{ steps.meta.outputs.VERSION }}" >/dev/null 2>&1; then
+            echo "TAG_EXISTS=1" >> $GITHUB_OUTPUT
+          else
+            echo "TAG_EXISTS=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Package
+        if: steps.check_tag.outputs.TAG_EXISTS == '0'
+        run: |
+          npx vsce package --allow-star-activation --out "${{ steps.meta.outputs.PACKAGE_FILE }}"
+
+      - name: Create Release
+        if: steps.check_tag.outputs.TAG_EXISTS == '0'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.VERSION }}
+          name: ${{ steps.meta.outputs.VERSION }}
+          files: "${{ steps.meta.outputs.PACKAGE_FILE }}"
+
+      - name: Publish to VSCode Marketplace
+        if: steps.check_tag.outputs.TAG_EXISTS == '0'
+        run: npx vsce publish -p ${{ secrets.VSCE_TOKEN }} --packagePath "${{ steps.meta.outputs.PACKAGE_FILE }}"
+
+      - name: Skip release (tag exists)
+        if: steps.check_tag.outputs.TAG_EXISTS == '1'
+        run: |
+          echo "Skipping release. Tag ${{ steps.meta.outputs.VERSION }} already exists."
