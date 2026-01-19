@@ -16,6 +16,11 @@ export class ChangeNode {
   contextValue: string;
   parentChangeIds?: string[];
   branchType?: string;
+  bookmarks?: string[];
+  commitId?: string;
+  email?: string;
+  timestamp?: string;
+
   constructor(
     label: string,
     description: string,
@@ -23,6 +28,10 @@ export class ChangeNode {
     contextValue: string,
     parentChangeIds?: string[],
     branchType?: string,
+    bookmarks?: string[],
+    commitId?: string,
+    email?: string,
+    timestamp?: string,
   ) {
     this.label = label;
     this.description = description;
@@ -30,7 +39,79 @@ export class ChangeNode {
     this.contextValue = contextValue;
     this.parentChangeIds = parentChangeIds;
     this.branchType = branchType;
+    this.bookmarks = bookmarks;
+    this.commitId = commitId;
+    this.email = email;
+    this.timestamp = timestamp;
   }
+}
+
+export function parseJJLog(output: string): ChangeNode[] {
+  const lines = output.split("\n").filter((line) => line.trim() !== "");
+  const changeNodes: ChangeNode[] = [];
+
+  for (const line of lines) {
+    // Format: change_id|email|timestamp|bookmarks|commit_id|branch_indicator|is_empty|description
+    const parts = line.split("|");
+    if (parts.length < 8) {
+      continue;
+    }
+
+    const [
+      changeId,
+      email,
+      timestamp,
+      bookmarksStr,
+      commitId,
+      branchIndicator,
+      isEmptyStr,
+      rawDescription,
+    ] = parts;
+
+    let description = rawDescription;
+
+    // Filter out redundant branch indicators or clean them up if needed
+    // logic for branchType (diamond vs circle)
+    let branchType = undefined;
+    if (branchIndicator.trim() === "◆") {
+      branchType = "◆";
+    } else {
+      branchType = "○";
+    }
+
+    // Parse bookmarks
+    const bookmarks = bookmarksStr && bookmarksStr.trim().length > 0
+      ? bookmarksStr.split(",").map(b => b.trim())
+      : [];
+
+    // Handle empty commits and missing descriptions
+    if (!description || description.trim().length === 0) {
+      description = "(no description set)";
+    }
+
+    if (isEmptyStr.trim() === "true") {
+      description = `(empty) ${description}`;
+    }
+
+    // Construct simplified label (though frontend uses description directly now)
+    const formattedLabel = `${description}`;
+
+    changeNodes.push(
+      new ChangeNode(
+        formattedLabel,
+        description,
+        `${email} ${timestamp}`,
+        changeId,
+        undefined,
+        branchType,
+        bookmarks,
+        commitId,
+        email,
+        timestamp,
+      ),
+    );
+  }
+  return changeNodes;
 }
 
 export class JJGraphWebview implements vscode.WebviewViewProvider {
@@ -124,7 +205,31 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
       return;
     }
 
-    let changes = parseJJLog(await this.repository.log());
+    // Use a custom template to ensure we get all the fields we need in a parseable format
+    // Format: change_id|email|timestamp|bookmarks|commit_id|branch_indicator|is_empty|description
+    const template = `
+      concat(
+        self.change_id().short(), "|",
+        author.email(), "|",
+        author.timestamp().format("%Y-%m-%d %H:%M:%S"), "|",
+        bookmarks.map(|b| b.name()).join(", "), "|",
+        self.commit_id().short(), "|",
+        if(self.contained_in("visible_heads()"), "◆", "○"), "|",
+        if(self.empty(), "true", "false"), "|",
+        description.first_line(),
+        "\\n"
+      )
+    `;
+
+    // Collect all changes
+    const output = await this.repository.log(
+      "::", // get all changes
+      template,
+      50,
+      true, // noGraph - we get graph structure from getChangeNodesWithParents
+    );
+
+    let changes = parseJJLog(output);
     changes = await this.getChangeNodesWithParents(changes);
 
     const status = await this.repository.getStatus(true);
@@ -220,10 +325,10 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
         continue;
       }
 
-      // Take only the first 8 characters of each ID
+      // Use the full ID provided by the log command
       parentMap.set(
-        changeId.substring(0, 8),
-        parentIds.map((id) => id.substring(0, 8)),
+        changeId,
+        parentIds,
       );
     }
 
@@ -259,59 +364,4 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
   }
 }
 
-export function parseJJLog(output: string): ChangeNode[] {
-  const lines = output.split("\n");
-  const changeNodes: ChangeNode[] = [];
 
-  for (let i = 0; i < lines.length; i += 2) {
-    const oddLine = lines[i];
-    let evenLine = lines[i + 1] || "";
-
-    let changeId = "";
-    if (i % 2 === 0) {
-      // Check if the line is odd-numbered (0-based index, so 0, 2, 4... are odd lines)
-      const match = oddLine.match(/\b([a-zA-Z0-9]+)\b/); // Match the first group of alphanumeric characters
-      if (match) {
-        changeId = match[1];
-      }
-    }
-
-    // Match the first alphanumeric character or opening parenthesis and everything after it
-    const match = evenLine.match(/([a-zA-Z0-9(].*)/);
-    const description = match ? match[1] : "";
-
-    // Remove the description from the even line
-    if (description) {
-      evenLine = evenLine.replace(description, "");
-    }
-
-    const emailMatch = oddLine.match(
-      /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/,
-    );
-    const timestampMatch = oddLine.match(
-      /\b\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\b/,
-    );
-    const symbolsMatch = oddLine.match(/^[^a-zA-Z0-9(]+/);
-    const commitIdMatch = oddLine.match(/([a-zA-Z0-9]{8})$/);
-
-    // Add this: Find first occurrence of @, ○, or ◆
-    const branchTypeMatch = symbolsMatch
-      ? symbolsMatch[0].match(/[@○◆]/)
-      : null;
-    const branchType = branchTypeMatch ? branchTypeMatch[0] : undefined;
-    const formattedLine = `${description}${changeId === "zzzzzzzz" ? "root()" : ""} • ${changeId} • ${commitIdMatch ? commitIdMatch[0] : ""}`;
-
-    // Create a ChangeNode for the odd line with the appended description
-    changeNodes.push(
-      new ChangeNode(
-        formattedLine,
-        `${emailMatch ? emailMatch[0] : ""} ${timestampMatch ? timestampMatch[0] : ""}`,
-        changeId,
-        changeId,
-        undefined,
-        branchType,
-      ),
-    );
-  }
-  return changeNodes;
-}

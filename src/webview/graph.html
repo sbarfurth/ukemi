@@ -361,13 +361,83 @@
                 // Create text content container
                 const textContent = document.createElement('div');
                 textContent.className = 'text-content';
-                const nodeLabel = document.createElement("div");
-                nodeLabel.textContent = change.label;
-                textContent.append(nodeLabel);
+
+                // 1. Description (Normal Weight)
                 const nodeDescription = document.createElement("div");
-                nodeDescription.className = 'description';
+                nodeDescription.className = 'commit-message';
                 nodeDescription.textContent = change.description;
                 textContent.append(nodeDescription);
+
+                // 2. Metadata Row (IDs + Bookmarks)
+                const metaInfo = document.createElement("div");
+                metaInfo.className = 'meta-info';
+
+                // Change ID
+                const changeIdSpan = document.createElement("span");
+                changeIdSpan.className = 'change-id';
+                changeIdSpan.textContent = change.contextValue.substring(0, 8); // Short ID
+                metaInfo.append(changeIdSpan);
+
+                // Separator
+                const sep1 = document.createElement("span");
+                sep1.className = 'separator';
+                sep1.textContent = " • ";
+                metaInfo.append(sep1);
+
+                // Commit ID
+                if (change.commitId) {
+                    const commitIdSpan = document.createElement("span");
+                    commitIdSpan.className = 'commit-id';
+                    commitIdSpan.textContent = change.commitId.substring(0, 8);
+                    metaInfo.append(commitIdSpan);
+                }
+
+                // Bookmarks
+                if (change.bookmarks && change.bookmarks.length > 0) {
+                    // Separator
+                    const sep2 = document.createElement("span");
+                    sep2.className = 'separator';
+                    sep2.textContent = " • ";
+                    metaInfo.append(sep2);
+
+                    change.bookmarks.forEach(bookmark => {
+                        const badge = document.createElement("span");
+                        badge.className = 'bookmark-badge';
+                        badge.textContent = bookmark;
+                        metaInfo.append(badge);
+                    });
+                }
+                textContent.append(metaInfo);
+
+                // 3. Author Row (Email + Date)
+                if (change.email || change.timestamp) {
+                    const authorInfo = document.createElement("div");
+                    authorInfo.className = 'meta-info'; // Reusing meta-info style for consistency
+                    authorInfo.classList.add('author-row');
+
+                    if (change.email) {
+                        const emailSpan = document.createElement("span");
+                        emailSpan.className = 'author-email';
+                        emailSpan.textContent = change.email;
+                        authorInfo.append(emailSpan);
+                    }
+
+                    if (change.email && change.timestamp) {
+                        const sep3 = document.createElement("span");
+                        sep3.className = 'separator';
+                        sep3.textContent = " • ";
+                        authorInfo.append(sep3);
+                    }
+
+                    if (change.timestamp) {
+                        const timeSpan = document.createElement("span");
+                        timeSpan.className = 'timestamp';
+                        timeSpan.textContent = change.timestamp;
+                        authorInfo.append(timeSpan);
+                    }
+                    textContent.append(authorInfo);
+                }
+
                 node.appendChild(textContent);
 
                 // Create and append edit button
