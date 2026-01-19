@@ -20,7 +20,7 @@ async function main() {
     );
 
     console.log(`Creating test repo in ${testRepoPath}`);
-    await execJJPromise("init --git", {
+    await execJJPromise("git init", {
       cwd: testRepoPath,
     });
 

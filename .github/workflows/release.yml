@@ -17,11 +17,11 @@ jobs:
 
       - uses: mlugg/setup-zig@v2
         with:
-          version: 0.14.1
+          version: ${{ vars.ZIG_VERSION }}
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.x
+          node-version: ${{ vars.NODE_VERSION }}
           cache: "npm"
 
       - name: Install dependencies
