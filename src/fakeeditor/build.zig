@@ -21,7 +21,7 @@ pub fn build(b: *std.Build) void {
         const os_name = @tagName(os);
         if (target.query.cpu_arch) |arch| {
             const arch_name = @tagName(arch);
-            
+
             // Create name in format: fakeeditor_{os}_{arch}
             exe_name = b.fmt("fakeeditor_{s}_{s}", .{
                 os_name, arch_name,
@@ -29,12 +29,16 @@ pub fn build(b: *std.Build) void {
         }
     }
 
-    const exe = b.addExecutable(.{
-        .name = exe_name,
+    const root_module = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
+    });
+
+    const exe = b.addExecutable(.{
+        .name = exe_name,
+        .root_module = root_module,
     });
 
     b.installArtifact(exe);
