@@ -50,8 +50,7 @@ jobs:
         run: |
           npx @vscode/vsce package \
             --allow-star-activation \
-            --out "${{ steps.meta.outputs.PACKAGE_FILE }}" \
-            --ignoreFile .vscodeignore
+            --out "${{ steps.meta.outputs.PACKAGE_FILE }}"
 
       - name: Create Release
         if: steps.check_tag.outputs.TAG_EXISTS == '0'

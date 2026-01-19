@@ -1,18 +1,13 @@
-.vscode/**
-.vscode-test/**
-out/**
-node_modules/**
-src/**
+# Ignore everything from the .vsix package
+*
+*/**
+
+# Except the actual extension files:
+!LICENSE
+!CHANGELOG.md 
+!package.json
+!README.md 
 !dist/**
 !images/**
-.gitignore
-.yarnrc
-esbuild.js
-vsc-extension-quickstart.md
-**/tsconfig.json
-**/eslint.config.mjs
-**/*.map
-**/*.ts
-**/.vscode-test.*
-.jj
-*.vsix
+!languages/**
+!syntaxes/**
