@@ -48,7 +48,7 @@ jobs:
       - name: Package
         if: steps.check_tag.outputs.TAG_EXISTS == '0'
         run: |
-          npx vsce package \
+          npx @vscode/vsce package \
             --allow-star-activation \
             --out "${{ steps.meta.outputs.PACKAGE_FILE }}" \
             --ignoreFile .vscodeignore
@@ -63,7 +63,10 @@ jobs:
 
       - name: Publish to VSCode Marketplace
         if: steps.check_tag.outputs.TAG_EXISTS == '0'
-        run: npx vsce publish -p ${{ secrets.VSCE_TOKEN }} --packagePath "${{ steps.meta.outputs.PACKAGE_FILE }}"
+        run: |
+          npx @vscode/vsce publish \
+            -p ${{ secrets.VSCE_TOKEN }} \
+            --packagePath "${{ steps.meta.outputs.PACKAGE_FILE }}"
 
       - name: Skip release (tag exists)
         if: steps.check_tag.outputs.TAG_EXISTS == '1'
