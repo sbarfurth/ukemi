@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -19,8 +19,27 @@ jobs:
           node-version: ${{ vars.NODE_VERSION }}
           cache: "npm"
 
+      - name: Install jj (Jujutsu)
+        run: |
+          curl -L https://github.com/jj-vcs/jj/releases/download/v0.37.0/jj-v0.37.0-x86_64-unknown-linux-musl.tar.gz -o jj.tar.gz
+          tar -xzf jj.tar.gz
+          sudo mv jj /usr/local/bin/
+          rm jj.tar.gz  # Clean up large file before jj init
+          jj --version
+          jj git init
+
+      - name: Setup Xvfb
+        run: |
+          sudo apt-get install -y xvfb
+          Xvfb :99 -screen 0 1280x1024x24 &
+
       - name: Install dependencies
         run: npm ci
 
       - name: Build
         run: npm run build
+
+      - name: Test
+        env:
+          DISPLAY: :99
+        run: npm test
