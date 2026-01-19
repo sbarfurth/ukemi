@@ -48,7 +48,10 @@ jobs:
       - name: Package
         if: steps.check_tag.outputs.TAG_EXISTS == '0'
         run: |
-          npx vsce package --allow-star-activation --out "${{ steps.meta.outputs.PACKAGE_FILE }}"
+          npx vsce package \
+            --allow-star-activation \
+            --out "${{ steps.meta.outputs.PACKAGE_FILE }}" \
+            --ignoreFile .vscodeignore
 
       - name: Create Release
         if: steps.check_tag.outputs.TAG_EXISTS == '0'
