@@ -444,8 +444,36 @@
             "timestamp",
             "none"
           ],
+          "enumItemLabels": [
+            "Full",
+            "Timestamp",
+            "None"
+          ],
+          "markdownEnumDescriptions": [
+            "Show author email and timestamp",
+            "Show timestamp only",
+            "Hide the detail row entirely"
+          ],
           "default": "full",
-          "description": "Controls the visibility of the detail row (author/timestamp) in the graph. 'full' shows email and timestamp, 'timestamp' shows timestamp only, 'none' hides the row entirely.",
+          "markdownDescription": "Controls the visibility of the detail row (author/timestamp) in the graph.",
+          "scope": "resource"
+        },
+        "ukemi.graph.useConfigLogRevset": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Whether to use the [default revset](https://docs.jj-vcs.dev/latest/config/#default-revisions) for `jj log` from the `revsets.log` configuration option.\n\nIf true, the `#ukemi.graph.revset#` setting is ignored.",
+          "scope": "resource"
+        },
+        "ukemi.graph.revset": {
+          "type": "string",
+          "default": "::",
+          "markdownDescription": "The [revset](https://docs.jj-vcs.dev/latest/revsets/) to use for graphing. Defaults to all changes (`::`).\n\nIgnored if `#ukemi.graph.useConfigLogRevset#` is `true`.",
+          "scope": "resource"
+        },
+        "ukemi.graph.limit": {
+          "type": "number",
+          "default": 50,
+          "markdownDescription": "Maximum number of commits to show in the graph.",
           "scope": "resource"
         }
       }

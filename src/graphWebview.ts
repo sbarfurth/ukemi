@@ -46,7 +46,6 @@ export class ChangeNode {
   }
 }
 
-
 export class JJGraphWebview implements vscode.WebviewViewProvider {
   subscriptions: {
     dispose(): unknown;
@@ -75,7 +74,7 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
     // Auto-refresh when relevant configuration changes
     context.subscriptions.push(
       vscode.workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration("ukemi.graph.detailDisplay")) {
+        if (e.affectsConfiguration("ukemi.graph")) {
           void this.refresh();
         }
       }),
@@ -165,11 +164,20 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
       )
     `;
 
+    const graphConfig = vscode.workspace.getConfiguration("ukemi.graph");
+    const detailDisplay = graphConfig.get<string>("detailDisplay", "full");
+    const useConfigLogRevset = graphConfig.get<boolean>(
+      "useConfigLogRevset",
+      false,
+    );
+    const revset = graphConfig.get<string>("revset", "::");
+    const limit = graphConfig.get<number>("limit", 50);
+
     // Collect all changes in a single pass (graph structure + data)
     const output = await this.repository.log(
-      "::", // get all changes
+      useConfigLogRevset ? null : revset,
       template,
-      50,
+      limit,
       false, // noGraph: false (we want the graph structure)
     );
 
@@ -178,7 +186,6 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
 
     const status = await this.repository.getStatus(true);
     const workingCopyId = status.workingCopy.changeId;
-    const detailDisplay = vscode.workspace.getConfiguration("ukemi.graph").get<string>("detailDisplay", "full");
 
     this.selectedNodes.clear();
     this.panel.webview.postMessage({
@@ -228,8 +235,6 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
 
     return html;
   }
-
-
 
   areChangeNodesEqual(a: ChangeNode[], b: ChangeNode[]): boolean {
     if (a.length !== b.length) {
@@ -297,14 +302,16 @@ export function parseJJLog(output: string): ChangeNode[] {
     }
 
     // Parse bookmarks
-    const bookmarks = bookmarksStr && bookmarksStr.trim().length > 0
-      ? bookmarksStr.split(",").map(b => b.trim())
-      : [];
+    const bookmarks =
+      bookmarksStr && bookmarksStr.trim().length > 0
+        ? bookmarksStr.split(",").map((b) => b.trim())
+        : [];
 
     // Parse parents
-    const parentChangeIds = parentsStr && parentsStr.trim().length > 0
-      ? parentsStr.split(" ").map(p => p.trim())
-      : [];
+    const parentChangeIds =
+      parentsStr && parentsStr.trim().length > 0
+        ? parentsStr.split(" ").map((p) => p.trim())
+        : [];
 
     // Handle empty commits and missing descriptions
     if (!description || description.trim().length === 0) {
@@ -335,4 +342,3 @@ export function parseJJLog(output: string): ChangeNode[] {
   }
   return changeNodes;
 }
-

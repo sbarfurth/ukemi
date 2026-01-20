@@ -1466,7 +1466,7 @@ export class JJRepository {
   }
 
   async log(
-    rev: string = "::",
+    rev: string | null = "::",
     template: string = "builtin_log_compact",
     limit: number = 50,
     noGraph: boolean = false,
@@ -1476,8 +1476,7 @@ export class JJRepository {
         this.spawnJJ(
           [
             "log",
-            "-r",
-            rev,
+            ...(rev !== null ? ["-r", rev] : []),
             "-n",
             limit.toString(),
             "-T",
