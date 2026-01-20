@@ -158,7 +158,7 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
         author.timestamp().format("%Y-%m-%d %H:%M:%S"), "|",
         bookmarks.map(|b| b.name()).join(", "), "|",
         self.commit_id().short(), "|",
-        if(self.contained_in("visible_heads()"), "◆", "○"), "|",
+        if(self.working_copies(), "@", if(self.contained_in("visible_heads()"), "◆", "○")), "|",
         if(self.empty(), "true", "false"), "|",
         description.first_line(),
         "\\n"
@@ -290,6 +290,8 @@ export function parseJJLog(output: string): ChangeNode[] {
     let branchType = undefined;
     if (branchIndicator.trim() === "◆") {
       branchType = "◆";
+    } else if (branchIndicator.trim() === "@") {
+      branchType = "@";
     } else {
       branchType = "○";
     }
