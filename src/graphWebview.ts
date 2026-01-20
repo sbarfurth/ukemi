@@ -46,73 +46,6 @@ export class ChangeNode {
   }
 }
 
-export function parseJJLog(output: string): ChangeNode[] {
-  const lines = output.split("\n").filter((line) => line.trim() !== "");
-  const changeNodes: ChangeNode[] = [];
-
-  for (const line of lines) {
-    // Format: change_id|email|timestamp|bookmarks|commit_id|branch_indicator|is_empty|description
-    const parts = line.split("|");
-    if (parts.length < 8) {
-      continue;
-    }
-
-    const [
-      changeId,
-      email,
-      timestamp,
-      bookmarksStr,
-      commitId,
-      branchIndicator,
-      isEmptyStr,
-      rawDescription,
-    ] = parts;
-
-    let description = rawDescription;
-
-    // Filter out redundant branch indicators or clean them up if needed
-    // logic for branchType (diamond vs circle)
-    let branchType = undefined;
-    if (branchIndicator.trim() === "◆") {
-      branchType = "◆";
-    } else {
-      branchType = "○";
-    }
-
-    // Parse bookmarks
-    const bookmarks = bookmarksStr && bookmarksStr.trim().length > 0
-      ? bookmarksStr.split(",").map(b => b.trim())
-      : [];
-
-    // Handle empty commits and missing descriptions
-    if (!description || description.trim().length === 0) {
-      description = "(no description set)";
-    }
-
-    if (isEmptyStr.trim() === "true") {
-      description = `(empty) ${description}`;
-    }
-
-    // Construct simplified label (though frontend uses description directly now)
-    const formattedLabel = `${description}`;
-
-    changeNodes.push(
-      new ChangeNode(
-        formattedLabel,
-        description,
-        `${email} ${timestamp}`,
-        changeId,
-        undefined,
-        branchType,
-        bookmarks,
-        commitId,
-        email,
-        timestamp,
-      ),
-    );
-  }
-  return changeNodes;
-}
 
 export class JJGraphWebview implements vscode.WebviewViewProvider {
   subscriptions: {
@@ -206,10 +139,12 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
     }
 
     // Use a custom template to ensure we get all the fields we need in a parseable format
-    // Format: change_id|email|timestamp|bookmarks|commit_id|branch_indicator|is_empty|description
+    // Format: JJLOGSTART|change_id|parents|email|timestamp|bookmarks|commit_id|branch_indicator|is_empty|description
     const template = `
       concat(
+        "JJLOGSTART|",
         self.change_id().short(), "|",
+        parents.map(|p| p.change_id().short()).join(" "), "|",
         author.email(), "|",
         author.timestamp().format("%Y-%m-%d %H:%M:%S"), "|",
         bookmarks.map(|b| b.name()).join(", "), "|",
@@ -221,16 +156,16 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
       )
     `;
 
-    // Collect all changes
+    // Collect all changes in a single pass (graph structure + data)
     const output = await this.repository.log(
       "::", // get all changes
       template,
       50,
-      true, // noGraph - we get graph structure from getChangeNodesWithParents
+      false, // noGraph: false (we want the graph structure)
     );
 
-    let changes = parseJJLog(output);
-    changes = await this.getChangeNodesWithParents(changes);
+    const changes = parseJJLog(output);
+    // getChangeNodesWithParents is no longer needed
 
     const status = await this.repository.getStatus(true);
     const workingCopyId = status.workingCopy.changeId;
@@ -283,65 +218,7 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
     return html;
   }
 
-  private async getChangeNodesWithParents(
-    changeNodes: ChangeNode[],
-  ): Promise<ChangeNode[]> {
-    const output = await this.repository.log(
-      "::", // get all changes
-      `
-        if(root,
-          "root()",
-          concat(
-            self.change_id().short(),
-            " ",
-            parents.map(|p| p.change_id().short()).join(" "),
-            "\n"
-          )
-        )
-        `,
-      50,
-      false,
-    );
 
-    const lines = output.split("\n");
-
-    // Build a map of change IDs to their parent IDs
-    const parentMap = new Map<string, string[]>();
-
-    for (const line of lines) {
-      // Extract only alphanumeric strings from the line
-      const ids = line.match(/[a-zA-Z0-9]+/g) || [];
-      if (ids.length < 1) {
-        continue;
-      }
-
-      // Check for root() after cleaning up symbols
-      if (ids[0] === "root") {
-        continue;
-      }
-
-      const [changeId, ...parentIds] = ids;
-      if (!changeId) {
-        continue;
-      }
-
-      // Use the full ID provided by the log command
-      parentMap.set(
-        changeId,
-        parentIds,
-      );
-    }
-
-    // Assign parents to nodes using the map
-    const res = changeNodes.map((node) => {
-      if (node.contextValue) {
-        node.parentChangeIds = parentMap.get(node.contextValue) || [];
-      }
-      return node;
-    });
-
-    return res;
-  }
 
   areChangeNodesEqual(a: ChangeNode[], b: ChangeNode[]): boolean {
     if (a.length !== b.length) {
@@ -364,4 +241,85 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
   }
 }
 
+export function parseJJLog(output: string): ChangeNode[] {
+  const lines = output.split("\n").filter((line) => line.trim() !== "");
+  const changeNodes: ChangeNode[] = [];
+
+  for (const line of lines) {
+    // Use the sentinel to find the start of our data, ignoring graph characters
+    const sentinelIndex = line.indexOf("JJLOGSTART|");
+    if (sentinelIndex === -1) {
+      continue;
+    }
+
+    const dataPart = line.substring(sentinelIndex + "JJLOGSTART|".length);
+    const parts = dataPart.split("|");
+
+    if (parts.length < 9) {
+      continue;
+    }
+
+    const [
+      changeId,
+      parentsStr,
+      email,
+      timestamp,
+      bookmarksStr,
+      commitId,
+      branchIndicator,
+      isEmptyStr,
+      rawDescription,
+    ] = parts;
+
+    let description = rawDescription;
+    // const paddingMarker = "JJLOGSTART|";
+
+    // Filter out redundant branch indicators or clean them up if needed
+    // logic for branchType (diamond vs circle)
+    let branchType = undefined;
+    if (branchIndicator.trim() === "◆") {
+      branchType = "◆";
+    } else {
+      branchType = "○";
+    }
+
+    // Parse bookmarks
+    const bookmarks = bookmarksStr && bookmarksStr.trim().length > 0
+      ? bookmarksStr.split(",").map(b => b.trim())
+      : [];
+
+    // Parse parents
+    const parentChangeIds = parentsStr && parentsStr.trim().length > 0
+      ? parentsStr.split(" ").map(p => p.trim())
+      : [];
+
+    // Handle empty commits and missing descriptions
+    if (!description || description.trim().length === 0) {
+      description = "(no description set)";
+    }
+
+    if (isEmptyStr.trim() === "true") {
+      description = `(empty) ${description}`;
+    }
+
+    // Construct simplified label (though frontend uses description directly now)
+    const formattedLabel = `${description}`;
+
+    changeNodes.push(
+      new ChangeNode(
+        formattedLabel,
+        description,
+        `${email} ${timestamp}`,
+        changeId,
+        parentChangeIds,
+        branchType,
+        bookmarks,
+        commitId,
+        email,
+        timestamp,
+      ),
+    );
+  }
+  return changeNodes;
+}
 
