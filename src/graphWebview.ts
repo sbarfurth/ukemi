@@ -75,7 +75,7 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
     // Auto-refresh when relevant configuration changes
     context.subscriptions.push(
       vscode.workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration("ukemi.graph.authorDisplay")) {
+        if (e.affectsConfiguration("ukemi.graph.detailDisplay")) {
           void this.refresh();
         }
       }),
@@ -178,7 +178,7 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
 
     const status = await this.repository.getStatus(true);
     const workingCopyId = status.workingCopy.changeId;
-    const authorDisplay = vscode.workspace.getConfiguration("ukemi.graph").get<string>("authorDisplay", "full");
+    const detailDisplay = vscode.workspace.getConfiguration("ukemi.graph").get<string>("detailDisplay", "full");
 
     this.selectedNodes.clear();
     this.panel.webview.postMessage({
@@ -186,7 +186,7 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
       changes: changes,
       workingCopyId,
       preserveScroll: true,
-      authorDisplay,
+      detailDisplay,
     });
   }
 

@@ -39,7 +39,7 @@
                         command: 'selectChange',
                         selectedNodes: []
                     });
-                    updateGraph(message.changes, message.workingCopyId, message.preserveScroll, message.authorDisplay);
+                    updateGraph(message.changes, message.workingCopyId, message.preserveScroll, message.detailDisplay);
                     break;
             }
         });
@@ -327,7 +327,7 @@
             return [fromNode, toNode];
         }
 
-                function updateGraph(changes, workingCopyId, preserveScroll = false, authorDisplay = 'full') {
+                        function updateGraph(changes, workingCopyId, preserveScroll = false, detailDisplay = 'full') {
             // Save current scroll position only when preserveScroll is true
             const scrollTop = preserveScroll ?
                 (window.scrollY || document.documentElement.scrollTop) : 0;
@@ -409,22 +409,22 @@
                 }
                 textContent.append(metaInfo);
 
-                // 3. Author Row (Email + Date)
+                // 3. Detail Row (Email + Date)
 
 
-                if (authorDisplay !== 'none' && (change.email || change.timestamp)) {
+                if (detailDisplay !== 'none' && (change.email || change.timestamp)) {
                     const authorInfo = document.createElement("div");
                     authorInfo.className = 'meta-info'; // Reusing meta-info style for consistency
                     authorInfo.classList.add('author-row');
 
-                    if (authorDisplay === 'full' && change.email) {
+                    if (detailDisplay === 'full' && change.email) {
                         const emailSpan = document.createElement("span");
                         emailSpan.className = 'author-email';
                         emailSpan.textContent = change.email;
                         authorInfo.append(emailSpan);
                     }
 
-                    if (authorDisplay === 'full' && change.email && change.timestamp) {
+                    if (detailDisplay === 'full' && change.email && change.timestamp) {
                         const sep3 = document.createElement("span");
                         sep3.className = 'separator';
                         sep3.textContent = " • ";
