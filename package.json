@@ -436,6 +436,17 @@
           "default": "",
           "description": "Path to the jj executable. If not set, your PATH and common locations will be searched for a jj executable.",
           "scope": "resource"
+        },
+        "ukemi.graph.authorDisplay": {
+          "type": "string",
+          "enum": [
+            "full",
+            "no-email",
+            "none"
+          ],
+          "default": "full",
+          "description": "Controls the visibility of the author/timestamp row in the graph. 'full' shows email and timestamp, 'no-email' shows timestamp only, 'none' hides the row entirely.",
+          "scope": "resource"
         }
       }
     },

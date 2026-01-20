@@ -71,6 +71,15 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
         },
       }),
     );
+
+    // Auto-refresh when relevant configuration changes
+    context.subscriptions.push(
+      vscode.workspace.onDidChangeConfiguration((e) => {
+        if (e.affectsConfiguration("ukemi.graph.authorDisplay")) {
+          void this.refresh();
+        }
+      }),
+    );
   }
 
   public async resolveWebviewView(
@@ -169,6 +178,7 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
 
     const status = await this.repository.getStatus(true);
     const workingCopyId = status.workingCopy.changeId;
+    const authorDisplay = vscode.workspace.getConfiguration("ukemi.graph").get<string>("authorDisplay", "full");
 
     this.selectedNodes.clear();
     this.panel.webview.postMessage({
@@ -176,6 +186,7 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
       changes: changes,
       workingCopyId,
       preserveScroll: true,
+      authorDisplay,
     });
   }
 

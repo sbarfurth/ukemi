@@ -39,7 +39,7 @@
                         command: 'selectChange',
                         selectedNodes: []
                     });
-                    updateGraph(message.changes, message.workingCopyId, message.preserveScroll);
+                    updateGraph(message.changes, message.workingCopyId, message.preserveScroll, message.authorDisplay);
                     break;
             }
         });
@@ -327,7 +327,7 @@
             return [fromNode, toNode];
         }
 
-        function updateGraph(changes, workingCopyId, preserveScroll = false) {
+                function updateGraph(changes, workingCopyId, preserveScroll = false, authorDisplay = 'full') {
             // Save current scroll position only when preserveScroll is true
             const scrollTop = preserveScroll ?
                 (window.scrollY || document.documentElement.scrollTop) : 0;
@@ -410,19 +410,21 @@
                 textContent.append(metaInfo);
 
                 // 3. Author Row (Email + Date)
-                if (change.email || change.timestamp) {
+
+
+                if (authorDisplay !== 'none' && (change.email || change.timestamp)) {
                     const authorInfo = document.createElement("div");
                     authorInfo.className = 'meta-info'; // Reusing meta-info style for consistency
                     authorInfo.classList.add('author-row');
 
-                    if (change.email) {
+                    if (authorDisplay === 'full' && change.email) {
                         const emailSpan = document.createElement("span");
                         emailSpan.className = 'author-email';
                         emailSpan.textContent = change.email;
                         authorInfo.append(emailSpan);
                     }
 
-                    if (change.email && change.timestamp) {
+                    if (authorDisplay === 'full' && change.email && change.timestamp) {
                         const sep3 = document.createElement("span");
                         sep3.className = 'separator';
                         sep3.textContent = " • ";
