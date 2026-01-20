@@ -1482,6 +1482,7 @@ export class JJRepository {
             limit.toString(),
             "-T",
             template,
+            "--color=never",
             ...(noGraph ? ["--no-graph"] : []),
           ],
           {

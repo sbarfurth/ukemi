@@ -100,15 +100,44 @@ body {
     padding-left: 12px;
 }
 
-.label-text {
+.commit-message {
     line-height: 1.2;
-    word-wrap: break-word;
+    font-weight: normal;
+    font-size: 1.0em;
+    margin-bottom: 2px;
 }
 
-.description {
-    line-height: 1.2;
-    font-size: 0.9em;
+.meta-info {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.85em;
+    font-style: italic;
     opacity: 0.8;
+    line-height: 1.2;
+}
+
+.author-row {
+    margin-top: 0px;
+}
+
+.change-id,
+.commit-id {
+    font-family: var(--vscode-editor-font-family);
+}
+
+.bookmark-badge {
+    background-color: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    border-radius: 2px;
+    padding: 1px 4px;
+    font-size: 0.9em;
+    margin-left: 2px;
+}
+
+.separator {
+    opacity: 0.5;
 }
 
 /* Edit button styling */

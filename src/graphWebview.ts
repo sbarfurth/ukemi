@@ -16,6 +16,11 @@ export class ChangeNode {
   contextValue: string;
   parentChangeIds?: string[];
   branchType?: string;
+  bookmarks?: string[];
+  commitId?: string;
+  email?: string;
+  timestamp?: string;
+
   constructor(
     label: string,
     description: string,
@@ -23,6 +28,10 @@ export class ChangeNode {
     contextValue: string,
     parentChangeIds?: string[],
     branchType?: string,
+    bookmarks?: string[],
+    commitId?: string,
+    email?: string,
+    timestamp?: string,
   ) {
     this.label = label;
     this.description = description;
@@ -30,8 +39,13 @@ export class ChangeNode {
     this.contextValue = contextValue;
     this.parentChangeIds = parentChangeIds;
     this.branchType = branchType;
+    this.bookmarks = bookmarks;
+    this.commitId = commitId;
+    this.email = email;
+    this.timestamp = timestamp;
   }
 }
+
 
 export class JJGraphWebview implements vscode.WebviewViewProvider {
   subscriptions: {
@@ -55,6 +69,15 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
         webviewOptions: {
           retainContextWhenHidden: true,
         },
+      }),
+    );
+
+    // Auto-refresh when relevant configuration changes
+    context.subscriptions.push(
+      vscode.workspace.onDidChangeConfiguration((e) => {
+        if (e.affectsConfiguration("ukemi.graph.detailDisplay")) {
+          void this.refresh();
+        }
       }),
     );
   }
@@ -124,11 +147,38 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
       return;
     }
 
-    let changes = parseJJLog(await this.repository.log());
-    changes = await this.getChangeNodesWithParents(changes);
+    // Use a custom template to ensure we get all the fields we need in a parseable format
+    // Format: JJLOGSTART|change_id|parents|email|timestamp|bookmarks|commit_id|branch_indicator|is_empty|description
+    const template = `
+      concat(
+        "JJLOGSTART|",
+        self.change_id().short(), "|",
+        parents.map(|p| p.change_id().short()).join(" "), "|",
+        author.email(), "|",
+        author.timestamp().format("%Y-%m-%d %H:%M:%S"), "|",
+        bookmarks.map(|b| b.name()).join(", "), "|",
+        self.commit_id().short(), "|",
+        if(self.contained_in("visible_heads()"), "◆", "○"), "|",
+        if(self.empty(), "true", "false"), "|",
+        description.first_line(),
+        "\\n"
+      )
+    `;
+
+    // Collect all changes in a single pass (graph structure + data)
+    const output = await this.repository.log(
+      "::", // get all changes
+      template,
+      50,
+      false, // noGraph: false (we want the graph structure)
+    );
+
+    const changes = parseJJLog(output);
+    // getChangeNodesWithParents is no longer needed
 
     const status = await this.repository.getStatus(true);
     const workingCopyId = status.workingCopy.changeId;
+    const detailDisplay = vscode.workspace.getConfiguration("ukemi.graph").get<string>("detailDisplay", "full");
 
     this.selectedNodes.clear();
     this.panel.webview.postMessage({
@@ -136,6 +186,7 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
       changes: changes,
       workingCopyId,
       preserveScroll: true,
+      detailDisplay,
     });
   }
 
@@ -178,65 +229,7 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
     return html;
   }
 
-  private async getChangeNodesWithParents(
-    changeNodes: ChangeNode[],
-  ): Promise<ChangeNode[]> {
-    const output = await this.repository.log(
-      "::", // get all changes
-      `
-        if(root,
-          "root()",
-          concat(
-            self.change_id().short(),
-            " ",
-            parents.map(|p| p.change_id().short()).join(" "),
-            "\n"
-          )
-        )
-        `,
-      50,
-      false,
-    );
 
-    const lines = output.split("\n");
-
-    // Build a map of change IDs to their parent IDs
-    const parentMap = new Map<string, string[]>();
-
-    for (const line of lines) {
-      // Extract only alphanumeric strings from the line
-      const ids = line.match(/[a-zA-Z0-9]+/g) || [];
-      if (ids.length < 1) {
-        continue;
-      }
-
-      // Check for root() after cleaning up symbols
-      if (ids[0] === "root") {
-        continue;
-      }
-
-      const [changeId, ...parentIds] = ids;
-      if (!changeId) {
-        continue;
-      }
-
-      // Take only the first 8 characters of each ID
-      parentMap.set(
-        changeId.substring(0, 8),
-        parentIds.map((id) => id.substring(0, 8)),
-      );
-    }
-
-    // Assign parents to nodes using the map
-    const res = changeNodes.map((node) => {
-      if (node.contextValue) {
-        node.parentChangeIds = parentMap.get(node.contextValue) || [];
-      }
-      return node;
-    });
-
-    return res;
-  }
 
   areChangeNodesEqual(a: ChangeNode[], b: ChangeNode[]): boolean {
     if (a.length !== b.length) {
@@ -260,58 +253,84 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
 }
 
 export function parseJJLog(output: string): ChangeNode[] {
-  const lines = output.split("\n");
+  const lines = output.split("\n").filter((line) => line.trim() !== "");
   const changeNodes: ChangeNode[] = [];
 
-  for (let i = 0; i < lines.length; i += 2) {
-    const oddLine = lines[i];
-    let evenLine = lines[i + 1] || "";
-
-    let changeId = "";
-    if (i % 2 === 0) {
-      // Check if the line is odd-numbered (0-based index, so 0, 2, 4... are odd lines)
-      const match = oddLine.match(/\b([a-zA-Z0-9]+)\b/); // Match the first group of alphanumeric characters
-      if (match) {
-        changeId = match[1];
-      }
+  for (const line of lines) {
+    // Use the sentinel to find the start of our data, ignoring graph characters
+    const sentinelIndex = line.indexOf("JJLOGSTART|");
+    if (sentinelIndex === -1) {
+      continue;
     }
 
-    // Match the first alphanumeric character or opening parenthesis and everything after it
-    const match = evenLine.match(/([a-zA-Z0-9(].*)/);
-    const description = match ? match[1] : "";
+    const dataPart = line.substring(sentinelIndex + "JJLOGSTART|".length);
+    const parts = dataPart.split("|");
 
-    // Remove the description from the even line
-    if (description) {
-      evenLine = evenLine.replace(description, "");
+    if (parts.length < 9) {
+      continue;
     }
 
-    const emailMatch = oddLine.match(
-      /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/,
-    );
-    const timestampMatch = oddLine.match(
-      /\b\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\b/,
-    );
-    const symbolsMatch = oddLine.match(/^[^a-zA-Z0-9(]+/);
-    const commitIdMatch = oddLine.match(/([a-zA-Z0-9]{8})$/);
+    const [
+      changeId,
+      parentsStr,
+      email,
+      timestamp,
+      bookmarksStr,
+      commitId,
+      branchIndicator,
+      isEmptyStr,
+      rawDescription,
+    ] = parts;
 
-    // Add this: Find first occurrence of @, ○, or ◆
-    const branchTypeMatch = symbolsMatch
-      ? symbolsMatch[0].match(/[@○◆]/)
-      : null;
-    const branchType = branchTypeMatch ? branchTypeMatch[0] : undefined;
-    const formattedLine = `${description}${changeId === "zzzzzzzz" ? "root()" : ""} • ${changeId} • ${commitIdMatch ? commitIdMatch[0] : ""}`;
+    let description = rawDescription;
+    // const paddingMarker = "JJLOGSTART|";
 
-    // Create a ChangeNode for the odd line with the appended description
+    // Filter out redundant branch indicators or clean them up if needed
+    // logic for branchType (diamond vs circle)
+    let branchType = undefined;
+    if (branchIndicator.trim() === "◆") {
+      branchType = "◆";
+    } else {
+      branchType = "○";
+    }
+
+    // Parse bookmarks
+    const bookmarks = bookmarksStr && bookmarksStr.trim().length > 0
+      ? bookmarksStr.split(",").map(b => b.trim())
+      : [];
+
+    // Parse parents
+    const parentChangeIds = parentsStr && parentsStr.trim().length > 0
+      ? parentsStr.split(" ").map(p => p.trim())
+      : [];
+
+    // Handle empty commits and missing descriptions
+    if (!description || description.trim().length === 0) {
+      description = "(no description set)";
+    }
+
+    if (isEmptyStr.trim() === "true") {
+      description = `(empty) ${description}`;
+    }
+
+    // Construct simplified label (though frontend uses description directly now)
+    const formattedLabel = `${description}`;
+
     changeNodes.push(
       new ChangeNode(
-        formattedLine,
-        `${emailMatch ? emailMatch[0] : ""} ${timestampMatch ? timestampMatch[0] : ""}`,
+        formattedLabel,
+        description,
+        `${email} ${timestamp}`,
         changeId,
-        changeId,
-        undefined,
+        parentChangeIds,
         branchType,
+        bookmarks,
+        commitId,
+        email,
+        timestamp,
       ),
     );
   }
   return changeNodes;
 }
+
