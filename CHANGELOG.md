@@ -1,5 +1,13 @@
 # Change Log
 
+## 0.0.7
+
+* Allow configuring graph revset. by @sbarfurth in https://github.com/sbarfurth/ukemi/pull/28
+* Open working copy on right side of diff editors. by @sbarfurth in https://github.com/sbarfurth/ukemi/pull/30
+* Switch open and diff actions on SCM file resources. by @sbarfurth in https://github.com/sbarfurth/ukemi/pull/31
+
+**Full Changelog**: https://github.com/sbarfurth/ukemi/compare/0.0.6...0.0.7
+
 ## 0.0.6
 
 * add bookmarks to graph view by @sesceu in https://github.com/sbarfurth/ukemi/pull/25
