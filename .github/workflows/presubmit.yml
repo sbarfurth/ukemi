@@ -28,9 +28,6 @@ jobs:
           jj --version
           jj git init
 
-      - name: Create virtual display
-        run: Xvfb :99 -screen 0 1280x1024x24 &
-
       - name: Install dependencies
         run: npm ci
 
@@ -40,4 +37,6 @@ jobs:
       - name: Test
         env:
           DISPLAY: :99
-        run: npm test
+        run: |
+          Xvfb :99 -screen 0 1280x1024x24 &
+          npm test
