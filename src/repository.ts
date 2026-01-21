@@ -699,7 +699,6 @@ class RepositorySourceControlManager {
               diffOriginalRev: "@",
             }),
             vscode.Uri.file(fileStatus.path),
-            "(Working Copy)",
           ),
         };
       },
@@ -760,7 +759,6 @@ class RepositorySourceControlManager {
                   diffOriginalRev: parentChange.changeId,
                 }),
                 vscode.Uri.file(parentStatus.path),
-                `(${parentChange.changeId})`,
               ),
             };
           },
@@ -789,15 +787,8 @@ function getResourceStateCommand(
   fileStatus: FileStatus,
   beforeUri: vscode.Uri,
   afterUri: vscode.Uri,
-  diffTitleSuffix: string,
 ): vscode.Command {
-  if (fileStatus.type === "A") {
-    return {
-      title: "Open",
-      command: "vscode.open",
-      arguments: [afterUri],
-    };
-  } else if (fileStatus.type === "D") {
+  if (fileStatus.type === "D") {
     return {
       title: "Open",
       command: "vscode.open",
@@ -810,13 +801,8 @@ function getResourceStateCommand(
   }
   return {
     title: "Open",
-    command: "vscode.diff",
-    arguments: [
-      beforeUri,
-      afterUri,
-      (fileStatus.renamedFrom ? `${fileStatus.renamedFrom} => ` : "") +
-        `${fileStatus.file} ${diffTitleSuffix}`,
-    ],
+    command: "vscode.open",
+    arguments: [afterUri],
   };
 }
 

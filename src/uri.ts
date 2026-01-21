@@ -19,7 +19,7 @@ export function toJJUri(uri: Uri, params: JJUriParams): Uri {
   });
 }
 
-export function getParams(uri: Uri) {
+export function getParams(uri: Uri): JJUriParams {
   if (uri.query === "") {
     throw new Error("URI has no query");
   }

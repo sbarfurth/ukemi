@@ -1,11 +1,7 @@
 import * as vscode from "vscode";
 import path from "path";
 import "./repository";
-import {
-  initExtensionDir,
-  provideOriginalResource,
-  WorkspaceSourceControlManager,
-} from "./repository";
+import { initExtensionDir, WorkspaceSourceControlManager } from "./repository";
 import type { JJRepository, ChangeWithDetails, FileStatus } from "./repository";
 import { JJDecorationProvider } from "./decorationProvider";
 import {
@@ -25,6 +21,7 @@ import {
 } from "./vendor/vscode/editor/common/diff/linesDiffComputer";
 import { match } from "arktype";
 import { getActiveTextEditorDiff, pathEquals } from "./utils";
+import { openDiff, openFile } from "./open_file";
 
 export async function activate(context: vscode.ExtensionContext) {
   const outputChannel = vscode.window.createOutputChannel("ukemi", {
@@ -388,118 +385,21 @@ export async function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
       vscode.commands.registerCommand(
-        "jj.openFileResourceState",
-        async (resourceState: vscode.SourceControlResourceState) => {
-          const opts: vscode.TextDocumentShowOptions = {
-            preserveFocus: false,
-            preview: false,
-            viewColumn: vscode.ViewColumn.Active,
-          };
-          try {
-            await vscode.commands.executeCommand(
-              "vscode.open",
-              vscode.Uri.file(resourceState.resourceUri.fsPath),
-              {
-                ...opts,
-              },
-            );
-          } catch (error) {
-            vscode.window.showErrorMessage(
-              `Failed to open file${error instanceof Error ? `: ${error.message}` : ""}`,
-            );
-          }
-        },
+        "jj.openFileResourceDiff",
+        (resourceState: vscode.SourceControlResourceState) =>
+          openDiff(resourceState.resourceUri, workspaceSCM),
       ),
     );
 
     context.subscriptions.push(
-      vscode.commands.registerCommand(
-        "jj.openFileEditor",
-        async (uri: vscode.Uri) => {
-          try {
-            if (!["file", "jj"].includes(uri.scheme)) {
-              return undefined;
-            }
-
-            let rev = "@";
-            if (uri.scheme === "jj") {
-              const params = getParams(uri);
-              if ("diffOriginalRev" in params) {
-                rev = params.diffOriginalRev;
-              } else {
-                rev = params.rev;
-              }
-            }
-
-            await vscode.commands.executeCommand(
-              "vscode.open",
-              uri,
-              {},
-              `${path.basename(uri.fsPath)} (${rev.substring(0, 8)})`,
-            );
-          } catch (error) {
-            vscode.window.showErrorMessage(
-              `Failed to open file${error instanceof Error ? `: ${error.message}` : ""}`,
-            );
-          }
-        },
+      vscode.commands.registerCommand("jj.openFileEditor", (uri: vscode.Uri) =>
+        openFile(uri),
       ),
     );
 
     context.subscriptions.push(
-      vscode.commands.registerCommand(
-        "jj.openDiffEditor",
-        async (uri: vscode.Uri) => {
-          try {
-            const originalUri = provideOriginalResource(uri);
-            if (!originalUri) {
-              throw new Error("Original resource not found");
-            }
-            const params = getParams(originalUri);
-            if (!("diffOriginalRev" in params)) {
-              throw new Error(
-                "Original resource does not have a diffOriginalRev. This is a bug.",
-              );
-            }
-
-            const rev = params.diffOriginalRev;
-
-            const scm =
-              workspaceSCM.getRepositorySourceControlManagerFromUri(
-                originalUri,
-              );
-
-            if (!scm) {
-              throw new Error(
-                "Source Control Manager not found with given URI.",
-              );
-            }
-
-            const repo = workspaceSCM.getRepositoryFromUri(originalUri);
-            if (!repo) {
-              throw new Error("Repository could not be found with given URI.");
-            }
-
-            const { fileStatuses } = await repo.show(rev);
-            const fileStatus = fileStatuses.find((file) =>
-              pathEquals(file.path, originalUri.path),
-            );
-
-            const diffTitleSuffix =
-              rev === "@" ? "(Working Copy)" : `(${rev.substring(0, 8)})`;
-            await vscode.commands.executeCommand(
-              "vscode.diff",
-              originalUri,
-              uri,
-              (fileStatus?.renamedFrom ? `${fileStatus.renamedFrom} => ` : "") +
-                `${path.relative(repo.repositoryRoot, originalUri.path)} ${diffTitleSuffix}`,
-            );
-          } catch (error) {
-            vscode.window.showErrorMessage(
-              `Failed to open diff${error instanceof Error ? `: ${error.message}` : ""}`,
-            );
-          }
-        },
+      vscode.commands.registerCommand("jj.openDiffEditor", (uri: vscode.Uri) =>
+        openDiff(uri, workspaceSCM),
       ),
     );
 
