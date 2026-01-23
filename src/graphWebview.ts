@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import type { JJRepository } from "./repository";
 import path from "path";
+import { getGraphConfig } from "./config";
 
 type Message = {
   command: string;
@@ -10,40 +11,22 @@ type Message = {
 };
 
 export class ChangeNode {
-  label: string;
-  description: string;
-  tooltip: string;
-  contextValue: string;
-  parentChangeIds?: string[];
-  branchType?: string;
-  bookmarks?: string[];
-  commitId?: string;
-  email?: string;
-  timestamp?: string;
-
   constructor(
-    label: string,
-    description: string,
-    tooltip: string,
-    contextValue: string,
-    parentChangeIds?: string[],
-    branchType?: string,
-    bookmarks?: string[],
-    commitId?: string,
-    email?: string,
-    timestamp?: string,
-  ) {
-    this.label = label;
-    this.description = description;
-    this.tooltip = tooltip;
-    this.contextValue = contextValue;
-    this.parentChangeIds = parentChangeIds;
-    this.branchType = branchType;
-    this.bookmarks = bookmarks;
-    this.commitId = commitId;
-    this.email = email;
-    this.timestamp = timestamp;
-  }
+    readonly label: string,
+    readonly description: string,
+    readonly isImmutable: boolean,
+    readonly tooltip: string,
+    readonly contextValue: string,
+    readonly shortestChangeId: string,
+    readonly parentChangeIds?: string[],
+    readonly branchType?: string,
+    readonly bookmarks?: string[],
+    readonly commitId?: string,
+    readonly shortestCommitId?: string,
+    readonly email?: string,
+    readonly timestamp?: string,
+    readonly timestampAgo?: string,
+  ) {}
 }
 
 export class JJGraphWebview implements vscode.WebviewViewProvider {
@@ -152,26 +135,31 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
       concat(
         "JJLOGSTART|",
         self.change_id().short(), "|",
+        self.change_id().shortest(), "|",
         parents.map(|p| p.change_id().short()).join(" "), "|",
         author.email(), "|",
         author.timestamp().format("%Y-%m-%d %H:%M:%S"), "|",
+        author.timestamp().ago(), "|",
         bookmarks.map(|b| b.name()).join(", "), "|",
         self.commit_id().short(), "|",
+        self.commit_id().shortest(), "|",
         if(self.working_copies(), "@", if(self.contained_in("visible_heads()"), "◆", "○")), "|",
         if(self.empty(), "true", "false"), "|",
+        if(self.immutable(), "true", "false"), "|",
         description.first_line(),
         "\\n"
       )
     `;
 
-    const graphConfig = vscode.workspace.getConfiguration("ukemi.graph");
-    const detailDisplay = graphConfig.get<string>("detailDisplay", "full");
-    const useConfigLogRevset = graphConfig.get<boolean>(
-      "useConfigLogRevset",
-      false,
-    );
-    const revset = graphConfig.get<string>("revset", "::");
-    const limit = graphConfig.get<number>("limit", 50);
+    const {
+      useConfigLogRevset,
+      revset,
+      limit,
+      showAuthor,
+      showBookmarks,
+      showCommitId,
+      showTimestamp,
+    } = getGraphConfig();
 
     // Collect all changes in a single pass (graph structure + data)
     const output = await this.repository.log(
@@ -182,7 +170,6 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
     );
 
     const changes = parseJJLog(output);
-    // getChangeNodesWithParents is no longer needed
 
     const status = await this.repository.getStatus(true);
     const workingCopyId = status.workingCopy.changeId;
@@ -193,7 +180,10 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
       changes: changes,
       workingCopyId,
       preserveScroll: true,
-      detailDisplay,
+      showAuthor,
+      showBookmarks,
+      showCommitId,
+      showTimestamp,
     });
   }
 
@@ -271,19 +261,23 @@ export function parseJJLog(output: string): ChangeNode[] {
     const dataPart = line.substring(sentinelIndex + "JJLOGSTART|".length);
     const parts = dataPart.split("|");
 
-    if (parts.length < 9) {
+    if (parts.length < 13) {
       continue;
     }
 
     const [
       changeId,
+      shortestChangeId,
       parentsStr,
       email,
       timestamp,
+      timestampAgo,
       bookmarksStr,
       commitId,
+      shortestCommitId,
       branchIndicator,
       isEmptyStr,
+      isImmutableStr,
       rawDescription,
     ] = parts;
 
@@ -322,6 +316,8 @@ export function parseJJLog(output: string): ChangeNode[] {
       description = `(empty) ${description}`;
     }
 
+    const isImmutable = isImmutableStr.trim() === "true";
+
     // Construct simplified label (though frontend uses description directly now)
     const formattedLabel = `${description}`;
 
@@ -329,14 +325,18 @@ export function parseJJLog(output: string): ChangeNode[] {
       new ChangeNode(
         formattedLabel,
         description,
-        `${email} ${timestamp}`,
+        isImmutable,
+        `${description}\n\n${email} ${timestamp}`,
         changeId,
+        shortestChangeId,
         parentChangeIds,
         branchType,
         bookmarks,
         commitId,
+        shortestCommitId,
         email,
         timestamp,
+        timestampAgo,
       ),
     );
   }

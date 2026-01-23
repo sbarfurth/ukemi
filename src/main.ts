@@ -22,6 +22,7 @@ import {
 import { match } from "arktype";
 import { getActiveTextEditorDiff, pathEquals } from "./utils";
 import { openDiff, openFile } from "./open_file";
+import { getConfig } from "./config";
 
 export async function activate(context: vscode.ExtensionContext) {
   const outputChannel = vscode.window.createOutputChannel("ukemi", {
@@ -211,11 +212,10 @@ export async function activate(context: vscode.ExtensionContext) {
       if (!repository) {
         return;
       }
-      const config = vscode.workspace.getConfiguration(
-        "ukemi",
+      const { enableAnnotations } = getConfig(
         vscode.Uri.file(repository.repositoryRoot),
       );
-      if (!config.get("enableAnnotations")) {
+      if (!enableAnnotations) {
         editor.setDecorations(annotationDecoration, []);
         return;
       }
@@ -297,11 +297,10 @@ export async function activate(context: vscode.ExtensionContext) {
       if (!repository) {
         return;
       }
-      const config = vscode.workspace.getConfiguration(
-        "ukemi",
+      const { enableAnnotations } = getConfig(
         vscode.Uri.file(repository.repositoryRoot),
       );
-      if (!config.get("enableAnnotations")) {
+      if (!enableAnnotations) {
         annotateInfo = undefined;
         return;
       }

@@ -11,6 +11,7 @@ import { JJFileSystemProvider } from "./fileSystemProvider";
 import * as os from "os";
 import * as crypto from "crypto";
 import which from "which";
+import { getConfig } from "./config";
 
 async function getJJVersion(jjPath: string): Promise<string> {
   try {
@@ -120,13 +121,9 @@ function getCommandTimeout(
   repositoryRoot: string,
   defaultTimeout: number | undefined,
 ): number {
-  const config = vscode.workspace.getConfiguration(
-    "ukemi",
-    vscode.Uri.file(repositoryRoot),
-  );
-  const configuredTimeout = config.get<number | null>("commandTimeout");
-  if (configuredTimeout !== null && configuredTimeout !== undefined) {
-    return configuredTimeout;
+  const { commandTimeout } = getConfig(vscode.Uri.file(repositoryRoot));
+  if (commandTimeout !== null && commandTimeout !== undefined) {
+    return commandTimeout;
   }
   return defaultTimeout ?? 30000;
 }
@@ -138,20 +135,18 @@ function getCommandTimeout(
 async function getJJPath(
   workspaceFolder: string,
 ): Promise<{ filepath: string; source: "configured" | "path" | "common" }> {
-  const config = vscode.workspace.getConfiguration(
-    "ukemi",
+  const { jjPath } = getConfig(
     workspaceFolder !== undefined
       ? vscode.Uri.file(workspaceFolder)
       : undefined,
   );
-  const configuredPath = config.get<string>("jjPath");
 
-  if (configuredPath) {
-    if (await which(configuredPath, { nothrow: true })) {
-      return { filepath: configuredPath, source: "configured" };
+  if (jjPath) {
+    if (await which(jjPath, { nothrow: true })) {
+      return { filepath: jjPath, source: "configured" };
     } else {
       throw new Error(
-        `Configured ukemi.jjPath is not an executable file: ${configuredPath}`,
+        `Configured ukemi.jjPath is not an executable file: ${jjPath}`,
       );
     }
   }

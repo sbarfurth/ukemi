@@ -20,7 +20,7 @@
         let selectedNodes = new Set();
         let currentWorkingCopyId;
 
-        window.addEventListener('message', event => {
+        window.addEventListener('message', (event) => {
             const message = event.data;
             switch (message.command) {
                 case 'updateGraph':
@@ -39,7 +39,15 @@
                         command: 'selectChange',
                         selectedNodes: []
                     });
-                    updateGraph(message.changes, message.workingCopyId, message.preserveScroll, message.detailDisplay);
+                    updateGraph(
+                        message.changes,
+                        message.workingCopyId,
+                        message.preserveScroll,
+                        message.showAuthor,
+                        message.showBookmarks,
+                        message.showCommitId,
+                        message.showTimestamp,
+                    );
                     break;
             }
         });
@@ -328,7 +336,7 @@
             return [fromNode, toNode];
         }
 
-        function updateGraph(changes, workingCopyId, preserveScroll = false, detailDisplay = 'full') {
+        function updateGraph(changes, workingCopyId, preserveScroll = false, showAuthor = true, showBookmarks = true, showCommitId = true, showTimestamp = 'always') {
             // Save current scroll position only when preserveScroll is true
             const scrollTop = preserveScroll ?
                 (window.scrollY || document.documentElement.scrollTop) : 0;
@@ -355,6 +363,7 @@
                 if (!change.contextValue) return;
                 const node = document.createElement('div');
                 node.className = 'change-node';
+                node.title = change.tooltip;
                 node.dataset.changeId = change.contextValue;
                 node.dataset.parentIds = JSON.stringify(change.parentChangeIds || []);
                 node.dataset.branchType = change.branchType;
@@ -373,74 +382,82 @@
                 const metaInfo = document.createElement("div");
                 metaInfo.className = 'meta-info';
 
+                const shouldShowCommitId = showCommitId && change.commitId;
+                const shouldShowBookmarks = showBookmarks && change.bookmarks && change.bookmarks.length > 0;
+                const shouldShowAuthor = showAuthor && change.email;
+                const shouldAlwaysShowTimestamp = showTimestamp === 'always' && change.timestampAgo;
+                const shouldShowImmutableTimestamp = showTimestamp === 'immutable_only' && change.isImmutable && change.timestampAgo;
+                const shouldShowTimestamp = shouldAlwaysShowTimestamp || shouldShowImmutableTimestamp;
+
                 // Change ID
                 const changeIdSpan = document.createElement("span");
                 changeIdSpan.className = 'change-id';
-                changeIdSpan.textContent = change.contextValue.substring(0, 8); // Short ID
+                changeIdSpan.textContent = change.shortestChangeId;
                 metaInfo.append(changeIdSpan);
 
-                // Separator
-                const sep1 = document.createElement("span");
-                sep1.className = 'separator';
-                sep1.textContent = " • ";
-                metaInfo.append(sep1);
+                const changeIdRemainingSpan = document.createElement("span");
+                changeIdRemainingSpan.className = 'change-id-remaining';
+                changeIdRemainingSpan.textContent = change.contextValue.substring(change.shortestChangeId.length, 8);
+                changeIdSpan.append(changeIdRemainingSpan);
 
                 // Commit ID
-                if (change.commitId) {
+                if (shouldShowCommitId) {
+                    const sep = document.createElement("span");
+                    sep.className = 'separator';
+                    sep.textContent = " • ";
+                    metaInfo.append(sep);
+
                     const commitIdSpan = document.createElement("span");
                     commitIdSpan.className = 'commit-id';
-                    commitIdSpan.textContent = change.commitId.substring(0, 8);
+                    commitIdSpan.textContent = change.shortestCommitId;
                     metaInfo.append(commitIdSpan);
+
+                    const commitIdRemainingSpan = document.createElement("span");
+                    commitIdRemainingSpan.className = 'commit-id-remaining';
+                    commitIdRemainingSpan.textContent = change.commitId.substring(change.shortestCommitId.length, 8);
+                    commitIdSpan.append(commitIdRemainingSpan);
                 }
 
-                // Bookmarks
-                if (change.bookmarks && change.bookmarks.length > 0) {
-                    // Separator
-                    const sep2 = document.createElement("span");
-                    sep2.className = 'separator';
-                    sep2.textContent = " • ";
-                    metaInfo.append(sep2);
+                if (shouldShowAuthor) {
+                    const sep = document.createElement("span");
+                    sep.className = 'separator';
+                    sep.textContent = " • ";
+                    metaInfo.append(sep);
+
+                    const emailSpan = document.createElement("span");
+                    emailSpan.className = 'author-email';
+                    emailSpan.textContent = change.email;
+                    metaInfo.append(emailSpan);
+                }
+
+                if (shouldShowTimestamp) {
+                    const sep = document.createElement("span");
+                    sep.className = 'separator';
+                    sep.textContent = " • ";
+                    metaInfo.append(sep);
+
+                    const timeSpan = document.createElement("span");
+                    timeSpan.className = 'timestamp';
+                    timeSpan.textContent = change.timestampAgo;
+                    metaInfo.append(timeSpan);
+                }
+
+                textContent.append(metaInfo);
+                
+                if (shouldShowBookmarks) {
+                    const bookmarkDiv = document.createElement("div");
+                    bookmarkDiv.className = 'bookmarks';
 
                     change.bookmarks.forEach(bookmark => {
                         const badge = document.createElement("span");
                         badge.className = 'bookmark-badge';
                         badge.textContent = bookmark;
-                        metaInfo.append(badge);
+                        bookmarkDiv.append(badge);
                     });
+                    
+                    textContent.append(bookmarkDiv);
                 }
-                textContent.append(metaInfo);
-
-                // 3. Detail Row (Email + Date)
-
-
-                if (detailDisplay !== 'none' && (change.email || change.timestamp)) {
-                    const authorInfo = document.createElement("div");
-                    authorInfo.className = 'meta-info'; // Reusing meta-info style for consistency
-                    authorInfo.classList.add('author-row');
-
-                    if (detailDisplay === 'full' && change.email) {
-                        const emailSpan = document.createElement("span");
-                        emailSpan.className = 'author-email';
-                        emailSpan.textContent = change.email;
-                        authorInfo.append(emailSpan);
-                    }
-
-                    if (detailDisplay === 'full' && change.email && change.timestamp) {
-                        const sep3 = document.createElement("span");
-                        sep3.className = 'separator';
-                        sep3.textContent = " • ";
-                        authorInfo.append(sep3);
-                    }
-
-                    if (change.timestamp) {
-                        const timeSpan = document.createElement("span");
-                        timeSpan.className = 'timestamp';
-                        timeSpan.textContent = change.timestamp;
-                        authorInfo.append(timeSpan);
-                    }
-                    textContent.append(authorInfo);
-                }
-
+                
                 node.appendChild(textContent);
 
                 // Create and append edit button
@@ -457,8 +474,8 @@
                     });
                 };
 
-                // Hide edit button if this is the working copy or has ID "zzzzzzzz"
-                if (change.branchType === "@" || change.contextValue === "zzzzzzzz") {
+                // Hide edit button if this is the working copy or immutable
+                if (change.branchType === "@" || change.isImmutable) {
                     editButton.style.display = 'none';
                 }
                 node.appendChild(editButton);

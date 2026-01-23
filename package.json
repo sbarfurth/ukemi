@@ -437,25 +437,43 @@
           "description": "Path to the jj executable. If not set, your PATH and common locations will be searched for a jj executable.",
           "scope": "resource"
         },
-        "ukemi.graph.detailDisplay": {
+        "ukemi.graph.showCommitId": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Whether to show the commit ID in the graph.",
+          "scope": "resource"
+        },
+        "ukemi.graph.showAuthor": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Whether to show the author in the graph.",
+          "scope": "resource"
+        },
+        "ukemi.graph.showBookmarks": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Whether to show the bookmarks in the graph.",
+          "scope": "resource"
+        },
+        "ukemi.graph.showTimestamp": {
           "type": "string",
           "enum": [
-            "full",
-            "timestamp",
-            "none"
+            "always",
+            "immutable_only",
+            "never"
           ],
           "enumItemLabels": [
-            "Full",
-            "Timestamp",
-            "None"
+            "Always",
+            "Immutable only",
+            "Never"
           ],
           "markdownEnumDescriptions": [
-            "Show author email and timestamp",
-            "Show timestamp only",
-            "Hide the detail row entirely"
+            "Show the timestamp on every commit",
+            "Show timestamp only on immutable revisions (e.g. trunk)",
+            "Never show timestamp"
           ],
-          "default": "full",
-          "markdownDescription": "Controls the visibility of the detail row (author/timestamp) in the graph.",
+          "default": "always",
+          "markdownDescription": "Controls the visibility of the timestamp in the graph.",
           "scope": "resource"
         },
         "ukemi.graph.useConfigLogRevset": {
