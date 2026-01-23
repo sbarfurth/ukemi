@@ -34,3 +34,34 @@ export function execJJPromise(
   const command = `${jjPath} ${args}`;
   return execPromise(command, options);
 }
+
+/**
+ * Gets the path to the test repository.
+ * @throws If the TEST_REPO_PATH environment variable is not set.
+ */
+export function getRepoPath(): string {
+  const repoPath = process.env.TEST_REPO_PATH;
+  if (!repoPath) {
+    throw new Error("TEST_REPO_PATH environment variable is not set");
+  }
+  return repoPath;
+}
+
+/** Author in a repository. */
+export interface Author {
+  name: string;
+  email: string;
+}
+
+/**
+ * Gets the path to the test repository.
+ * @throws If the TEST_REPO_PATH environment variable is not set.
+ */
+export function getRepoAuthor(): Author {
+  const repoAuthor = process.env.TEST_REPO_AUTHOR;
+  if (!repoAuthor) {
+    throw new Error("TEST_REPO_AUTHOR environment variable is not set");
+  }
+  const [name, email] = repoAuthor.split(":");
+  return { name, email };
+}

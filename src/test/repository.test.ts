@@ -1,5 +1,124 @@
-import * as assert from "assert";
-import { parseRenamePaths } from "../repository"; // Adjust path as needed
+import * as assert from "assert/strict";
+import {
+  parseRenamePaths,
+  JJRepository,
+  Change,
+  FileStatus,
+  Show,
+  ChangeWithDetails,
+} from "../repository"; // Adjust path as needed
+import { getJJPath, getRepoAuthor, getRepoPath } from "./utils";
+import fs from "fs/promises";
+import path from "path";
+
+suite("JJRepository", () => {
+  let suiteDir: string;
+
+  suiteSetup(async () => {
+    suiteDir = await fs.mkdtemp(path.join(getRepoPath(), "suite-"));
+  });
+
+  suiteTeardown(async () => {
+    await fs.rm(suiteDir, { recursive: true });
+  });
+
+  suite("getStatus", () => {
+    test("retrieves the status of the jj workspace", async () => {
+      const fileName = "file.txt";
+      const relativeFilePath = path.join(path.basename(suiteDir), fileName);
+      const filePath = path.join(suiteDir, fileName);
+
+      await fs.writeFile(filePath, "Initial content");
+      const repo = new JJRepository(getRepoPath(), getJJPath(), "0.37.0", []);
+
+      const status = await repo.getStatus();
+
+      assert.deepStrictEqual(status.conflictedFiles, new Set<string>());
+      assert.deepStrictEqual(status.fileStatuses, [
+        {
+          file: relativeFilePath,
+          path: filePath,
+          type: "A",
+        } satisfies FileStatus,
+      ]);
+      assert.strictEqual(status.parentChanges.length, 1);
+      assert.deepStrictEqual(status.parentChanges[0], {
+        bookmarks: undefined,
+        changeId: "zzzzzzzz",
+        commitId: "00000000",
+        description: "",
+        isConflict: false,
+        isEmpty: true,
+        isImmutable: true,
+      } satisfies Change);
+      assert.partialDeepStrictEqual(status.workingCopy, {
+        bookmarks: undefined,
+        description: "",
+        isEmpty: false,
+        isConflict: false,
+        isImmutable: false,
+      } satisfies Partial<Change>);
+      assert.match(status.workingCopy.changeId, /^[k-z]{8}$/);
+      assert.match(status.workingCopy.commitId, /^[a-f0-9]{8}$/);
+    });
+  });
+
+  suite("showAll", () => {
+    test("shows all commits for a revset", async () => {
+      const fileName = "file.txt";
+      const relativeFilePath = path.join(path.basename(suiteDir), fileName);
+      const filePath = path.join(suiteDir, fileName);
+      const repoAuthor = getRepoAuthor();
+
+      await fs.writeFile(filePath, "Initial content");
+      const repo = new JJRepository(getRepoPath(), getJJPath(), "0.37.0", []);
+
+      const show = await repo.showAll(["::"]);
+
+      assert.strictEqual(relativeFilePath, relativeFilePath);
+      assert.strictEqual(show.length, 2);
+      assert.partialDeepStrictEqual(show[0], {
+        conflictedFiles: new Set<string>(),
+        fileStatuses: [
+          {
+            file: relativeFilePath,
+            path: filePath,
+            type: "A",
+          },
+        ],
+      } satisfies Partial<Show>);
+      assert.partialDeepStrictEqual(show[0].change, {
+        author: {
+          email: repoAuthor.email,
+          name: repoAuthor.name,
+        },
+        description: "",
+        isConflict: false,
+        isEmpty: false,
+        isImmutable: false,
+      } satisfies Partial<ChangeWithDetails>);
+      assert.match(show[0].change.changeId, /^[k-z]{32}$/);
+      assert.match(show[0].change.commitId, /^[a-f0-9]{40}$/);
+      assert.deepStrictEqual(show[1], {
+        change: {
+          author: {
+            email: "",
+            name: "",
+          },
+          authoredDate: "1970-01-01 00:00:00",
+          changeId: "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+          commitId: "0000000000000000000000000000000000000000",
+          description: "",
+          isConflict: false,
+          isEmpty: true,
+          isImmutable: true,
+        },
+        conflictedFiles: new Set<string>(),
+        fileStatuses: [],
+      } satisfies Show);
+    });
+  });
+});
 
 suite("parseRenamePaths", () => {
   test("should handle rename with no prefix or suffix", () => {

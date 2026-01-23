@@ -10,6 +10,10 @@ export function run(
     timeout: 30_000,
   });
 
+  if (process.env.MOCHA_GREP) {
+    mocha.grep(process.env.MOCHA_GREP);
+  }
+
   // Path to the bundled file containing all tests
   const allTestsBundlePath = path.resolve(
     path.dirname(testsRoot),

@@ -722,7 +722,9 @@ class RepositorySourceControlManager {
     }
     this.parentResourceGroups = updatedGroups;
 
-    for (const parentChange of this.status.parentChanges) {
+    for (const parentChange of this.status.parentChanges.filter(
+      (c) => !c.isImmutable,
+    )) {
       let parentChangeResourceGroup!: vscode.SourceControlResourceGroup;
 
       const parentGroup = this.parentResourceGroups.find(
@@ -848,7 +850,27 @@ export class JJRepository {
       return this.statusCache;
     }
 
-    const output = (
+    const immutableOutput = (
+      await handleJJCommand(
+        this.spawnJJ(
+          ["log", "-r", "immutable_heads()", "-T", "change_id.short(8)"],
+          {
+            timeout: 5000,
+            cwd: this.repositoryRoot,
+          },
+        ),
+      )
+    ).toString();
+    const changeIdLinePattern = /^.*([k-z]{8})$/;
+    const immutableChangeIds = new Set<string>();
+    for (const line of immutableOutput.split("\n").filter(Boolean)) {
+      const match = line.match(changeIdLinePattern);
+      if (match) {
+        immutableChangeIds.add(match[1]);
+      }
+    }
+
+    const statusOutput = (
       await handleJJCommand(
         this.spawnJJ(["status", "--color=always"], {
           timeout: 5000,
@@ -856,7 +878,11 @@ export class JJRepository {
         }),
       )
     ).toString();
-    const status = await parseJJStatus(this.repositoryRoot, output);
+    const status = await parseJJStatus(
+      this.repositoryRoot,
+      statusOutput,
+      immutableChangeIds,
+    );
 
     this.statusCache = status;
     return status;
@@ -892,7 +918,7 @@ export class JJRepository {
     return results[0];
   }
 
-  async showAll(revsets: string[]) {
+  async showAll(revsets: string[]): Promise<Show[]> {
     const revSeparator = "ukemiඞ\n";
     const fieldSeparator = "ඞukemi";
     const summarySeparator = "@?!"; // characters that are illegal in filepaths
@@ -904,6 +930,7 @@ export class JJRepository {
       "author.email()",
       'author.timestamp().local().format("%F %H:%M:%S")',
       "description",
+      "immutable",
       "empty",
       "conflict",
       isConflictDetectionSupported
@@ -960,6 +987,7 @@ export class JJRepository {
           authoredDate: "",
           isEmpty: false,
           isConflict: false,
+          isImmutable: false,
         },
         fileStatuses: [],
         conflictedFiles: new Set<string>(),
@@ -986,6 +1014,9 @@ export class JJRepository {
             break;
           case "description":
             ret.change.description = value;
+            break;
+          case "immutable":
+            ret.change.isImmutable = value === "true";
             break;
           case "empty":
             ret.change.isEmpty = value === "true";
@@ -1879,6 +1910,7 @@ export interface Change {
   description: string;
   isEmpty: boolean;
   isConflict: boolean;
+  isImmutable: boolean;
 }
 
 export interface ChangeWithDetails extends Change {
@@ -1914,6 +1946,7 @@ export type Operation = {
 async function parseJJStatus(
   repositoryRoot: string,
   output: string,
+  immutableChangeIds: ReadonlySet<string>,
 ): Promise<RepositoryStatus> {
   const lines = output.split("\n");
   const fileStatuses: FileStatus[] = [];
@@ -1924,6 +1957,7 @@ async function parseJJStatus(
     description: "",
     isEmpty: false,
     isConflict: false,
+    isImmutable: false,
   };
   const parentCommits: Change[] = [];
 
@@ -2042,8 +2076,10 @@ async function parseJJStatus(
       const isEmpty = jjDescriptors.includes("(empty)");
       const isConflict = jjDescriptors.includes("(conflict)");
 
+      const cleanedChangeId = await stripAnsiCodes(changeId);
+
       const commitDetails: Change = {
-        changeId: await stripAnsiCodes(changeId),
+        changeId: cleanedChangeId,
         commitId: await stripAnsiCodes(commitId),
         bookmarks: bookmarks
           ? (await stripAnsiCodes(bookmarks)).split(/\s+/)
@@ -2051,6 +2087,7 @@ async function parseJJStatus(
         description: cleanedDescription,
         isEmpty,
         isConflict,
+        isImmutable: immutableChangeIds.has(cleanedChangeId),
       };
 
       if ((await stripAnsiCodes(type)) === "Working copy") {
