@@ -92,7 +92,15 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
       switch (message.command) {
         case "editChange":
           try {
-            await this.repository.editRetryImmutable(message.changeId);
+            await vscode.window.withProgress(
+              {
+                location: vscode.ProgressLocation.Notification,
+                title: "Updating working directory...",
+              },
+              async () => {
+                await this.repository.editRetryImmutable(message.changeId);
+              },
+            );
           } catch (error: unknown) {
             vscode.window.showErrorMessage(
               `Failed to switch to change: ${error as string}`,
