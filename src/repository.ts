@@ -944,6 +944,7 @@ export class JJRepository {
             "-T",
             template,
             "--no-graph",
+            "--ignore-working-copy",
             ...revsets.flatMap((revset) => ["-r", revset]),
           ],
           {
@@ -1486,6 +1487,7 @@ export class JJRepository {
         this.spawnJJ(
           [
             "log",
+            "--ignore-working-copy",
             ...(rev !== null ? ["-r", rev] : []),
             "-n",
             limit.toString(),
