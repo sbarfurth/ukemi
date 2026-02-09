@@ -30,6 +30,11 @@
           "when": "jj.reposExist"
         },
         {
+          "id": "jjGraph",
+          "name": "Commits (JJ)",
+          "when": "jj.reposExist"
+        },
+        {
           "id": "jjOperationLog",
           "name": "Operation Log (JJ)",
           "when": "jj.reposExist"
@@ -185,6 +190,37 @@
         "title": "Open child change",
         "category": "Jujutsu",
         "icon": "$(arrow-right)"
+      },
+      {
+        "command": "jj.copyFullChangeId",
+        "title": "Copy Full Change ID",
+        "category": "Jujutsu"
+      },
+      {
+        "command": "jj.copyShortChangeId",
+        "title": "Copy Short Change ID",
+        "category": "Jujutsu"
+      },
+      {
+        "command": "jj.copyDescription",
+        "title": "Copy Description",
+        "category": "Jujutsu"
+      },
+      {
+        "command": "jj.update",
+        "title": "Update",
+        "category": "Jujutsu"
+      },
+      {
+        "command": "jj.abandon",
+        "title": "Abandon",
+        "category": "Jujutsu",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "jj.commit",
+        "title": "Commit changes",
+        "category": "Jujutsu"
       }
     ],
     "menus": {
@@ -256,6 +292,31 @@
         {
           "command": "jj.operationRestore",
           "when": "view == jjOperationLog",
+          "group": "inline"
+        },
+        {
+          "command": "jj.copyFullChangeId",
+          "when": "view == jjGraph",
+          "group": "1_item_copy@1"
+        },
+        {
+          "command": "jj.copyShortChangeId",
+          "when": "view == jjGraph",
+          "group": "1_item_copy@2"
+        },
+        {
+          "command": "jj.copyDescription",
+          "when": "view == jjGraph",
+          "group": "1_item_copy@3"
+        },
+        {
+          "command": "jj.update",
+          "when": "view == jjGraph",
+          "group": "2_item_action@1"
+        },
+        {
+          "command": "jj.abandon",
+          "when": "view == jjGraph",
           "group": "inline"
         }
       ],

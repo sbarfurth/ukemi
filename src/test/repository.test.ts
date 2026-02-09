@@ -43,7 +43,7 @@ suite("JJRepository", () => {
       ]);
       assert.strictEqual(status.parentChanges.length, 1);
       assert.deepStrictEqual(status.parentChanges[0], {
-        bookmarks: undefined,
+        bookmarks: [],
         changeId: "zzzzzzzz",
         commitId: "00000000",
         description: "",
@@ -52,7 +52,7 @@ suite("JJRepository", () => {
         isImmutable: true,
       } satisfies Change);
       assert.partialDeepStrictEqual(status.workingCopy, {
-        bookmarks: undefined,
+        bookmarks: [],
         description: "",
         isEmpty: false,
         isConflict: false,
@@ -108,10 +108,14 @@ suite("JJRepository", () => {
           authoredDate: "1970-01-01 00:00:00",
           changeId: "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
           commitId: "0000000000000000000000000000000000000000",
+          parentChangeIds: [],
+          bookmarks: [],
           description: "",
           isConflict: false,
           isEmpty: true,
           isImmutable: true,
+          isCurrentWorkingCopy: false,
+          isSynced: true,
         },
         conflictedFiles: new Set<string>(),
         fileStatuses: [],

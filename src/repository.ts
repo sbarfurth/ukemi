@@ -550,13 +550,12 @@ class RepositorySourceControlManager {
     this.subscriptions.push(this.workingCopyResourceGroup);
 
     // Set up the SourceControlInputBox
-    this.sourceControl.inputBox.placeholder =
-      "Describe new change (Ctrl+Enter)";
+    this.sourceControl.inputBox.placeholder = "Message (press {0} to commit)";
 
     // Link the acceptInputCommand to the SourceControl instance
     this.sourceControl.acceptInputCommand = {
-      command: "jj.new",
-      title: "Create new change",
+      command: "jj.commit",
+      title: "Commit changes",
       arguments: [this.sourceControl],
     };
 
@@ -661,7 +660,7 @@ class RepositorySourceControlManager {
   }
 
   static getLabel(prefix: string, change: Change) {
-    return `${prefix} [${change.changeId}]${
+    return `${prefix} ${
       change.description ? ` • ${change.description}` : ""
     }${change.isEmpty ? " (empty)" : ""}${
       change.isConflict ? " (conflict)" : ""
@@ -675,11 +674,7 @@ class RepositorySourceControlManager {
       );
     }
 
-    this.workingCopyResourceGroup.label =
-      RepositorySourceControlManager.getLabel(
-        "Working Copy",
-        this.status.workingCopy,
-      );
+    this.workingCopyResourceGroup.label = "Working Copy";
     this.workingCopyResourceGroup.resourceStates = this.status.fileStatuses.map(
       (fileStatus) => {
         return {
@@ -803,6 +798,11 @@ function getResourceStateCommand(
   };
 }
 
+interface ShowTemplateField {
+  template: string;
+  setter?: (value: string, show: Show) => void;
+}
+
 export class JJRepository {
   statusCache: RepositoryStatus | undefined;
   gitFetchPromise: Promise<void> | undefined;
@@ -918,23 +918,103 @@ export class JJRepository {
     const fieldSeparator = "ඞukemi";
     const summarySeparator = "@?!"; // characters that are illegal in filepaths
     const isConflictDetectionSupported = this.jjVersion >= "jj 0.26.0";
-    const templateFields = [
-      "change_id",
-      "commit_id",
-      "author.name()",
-      "author.email()",
-      'author.timestamp().local().format("%F %H:%M:%S")',
-      "description",
-      "immutable",
-      "empty",
-      "conflict",
-      isConflictDetectionSupported
-        ? `diff.files().map(|entry| entry.status() ++ "${summarySeparator}" ++ entry.source().path().display() ++ "${summarySeparator}" ++ entry.target().path().display() ++ "${summarySeparator}" ++ entry.target().conflict()).join("\n")`
-        : "diff.summary()",
+    const templateFields: ShowTemplateField[] = [
+      {
+        template: "change_id",
+        setter: (value, show) => {
+          show.change.changeId = value;
+        },
+      },
+      {
+        template: "commit_id",
+        setter: (value, show) => {
+          show.change.commitId = value;
+        },
+      },
+      {
+        template: "author.name()",
+        setter: (value, show) => {
+          show.change.author.name = value;
+        },
+      },
+      {
+        template: "author.email()",
+        setter: (value, show) => {
+          show.change.author.email = value;
+        },
+      },
+      {
+        template: 'author.timestamp().local().format("%F %H:%M:%S")',
+        setter: (value, show) => {
+          show.change.authoredDate = value;
+        },
+      },
+      {
+        template: 'parents.map(|p| p.change_id()).join(",")',
+        setter: (value, show) => {
+          show.change.parentChangeIds = value
+            .split(",")
+            .map((id) => id.trim())
+            .filter(Boolean);
+        },
+      },
+      {
+        template: 'bookmarks.map(|b| b.name()).join(",")',
+        setter: (value, show) => {
+          show.change.bookmarks = value
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+        },
+      },
+      {
+        template: "description",
+        setter: (value, show) => {
+          show.change.description = value;
+        },
+      },
+      {
+        template: "immutable",
+        setter: (value, show) => {
+          show.change.isImmutable = value === "true";
+        },
+      },
+      {
+        template: "empty",
+        setter: (value, show) => {
+          show.change.isEmpty = value === "true";
+        },
+      },
+      {
+        template: "conflict",
+        setter: (value, show) => {
+          show.change.isConflict = value === "true";
+        },
+      },
+      {
+        template: "current_working_copy",
+        setter: (value, show) => {
+          show.change.isCurrentWorkingCopy = value === "true";
+        },
+      },
+      {
+        template: "bookmarks.all(|b| b.synced())",
+        setter: (value, show) => {
+          show.change.isSynced = value === "true";
+        },
+      },
     ];
+    if (isConflictDetectionSupported) {
+      templateFields.push({
+        template: `diff.files().map(|entry| entry.status() ++ "${summarySeparator}" ++ entry.source().path().display() ++ "${summarySeparator}" ++ entry.target().path().display() ++ "${summarySeparator}" ++ entry.target().conflict()).join("\n")`,
+      });
+    } else {
+      templateFields.push({ template: "diff.summary()" });
+    }
     const template =
-      templateFields.join(` ++ "${fieldSeparator}" ++ `) +
-      ` ++ "${revSeparator}"`;
+      templateFields
+        .map((field) => field.template)
+        .join(` ++ "${fieldSeparator}" ++ `) + ` ++ "${revSeparator}"`;
 
     const output = (
       await handleJJCommand(
@@ -980,9 +1060,13 @@ export class JJRepository {
             name: "",
           },
           authoredDate: "",
+          parentChangeIds: [],
+          bookmarks: [],
           isEmpty: false,
           isConflict: false,
           isImmutable: false,
+          isCurrentWorkingCopy: false,
+          isSynced: false,
         },
         fileStatuses: [],
         conflictedFiles: new Set<string>(),
@@ -991,122 +1075,86 @@ export class JJRepository {
       for (let i = 0; i < fields.length; i++) {
         const field = fields[i];
         const value = field.trim();
-        switch (templateFields[i]) {
-          case "change_id":
-            ret.change.changeId = value;
-            break;
-          case "commit_id":
-            ret.change.commitId = value;
-            break;
-          case "author.name()":
-            ret.change.author.name = value;
-            break;
-          case "author.email()":
-            ret.change.author.email = value;
-            break;
-          case 'author.timestamp().local().format("%F %H:%M:%S")':
-            ret.change.authoredDate = value;
-            break;
-          case "description":
-            ret.change.description = value;
-            break;
-          case "immutable":
-            ret.change.isImmutable = value === "true";
-            break;
-          case "empty":
-            ret.change.isEmpty = value === "true";
-            break;
-          case "conflict":
-            ret.change.isConflict = value === "true";
-            break;
-          default: {
-            const changeRegex = /^(A|M|D|R|C) (.+)$/;
-            for (const line of value.split("\n").filter(Boolean)) {
-              if (isConflictDetectionSupported) {
-                const [status, rawSourcePath, rawTargetPath, conflict] =
-                  line.split(summarySeparator);
-                const sourcePath = path
-                  .normalize(rawSourcePath)
-                  .replace(/\\/g, "/");
-                const targetPath = path
-                  .normalize(rawTargetPath)
-                  .replace(/\\/g, "/");
-                if (
-                  [
-                    "modified",
-                    "added",
-                    "removed",
-                    "copied",
-                    "renamed",
-                  ].includes(status)
-                ) {
-                  if (status === "renamed" || status === "copied") {
-                    ret.fileStatuses.push({
-                      type: status === "renamed" ? "R" : "C",
-                      file: path.basename(targetPath),
-                      path: path.join(this.repositoryRoot, targetPath),
-                      renamedFrom: sourcePath,
-                    });
-                  } else {
-                    ret.fileStatuses.push({
-                      type:
-                        status === "added"
-                          ? "A"
-                          : status === "removed"
-                            ? "D"
-                            : "M",
-                      file: path.basename(targetPath),
-                      path: path.join(this.repositoryRoot, targetPath),
-                    });
-                  }
-                  if (conflict === "true") {
-                    ret.conflictedFiles.add(
-                      path.join(this.repositoryRoot, targetPath),
-                    );
-                  }
+        const templateField = templateFields[i];
+        if (templateField.setter) {
+          templateField.setter(value, ret);
+        } else {
+          const changeRegex = /^(A|M|D|R|C) (.+)$/;
+          for (const line of value.split("\n").filter(Boolean)) {
+            if (isConflictDetectionSupported) {
+              const [status, rawSourcePath, rawTargetPath, conflict] =
+                line.split(summarySeparator);
+              const sourcePath = path
+                .normalize(rawSourcePath)
+                .replace(/\\/g, "/");
+              const targetPath = path
+                .normalize(rawTargetPath)
+                .replace(/\\/g, "/");
+              if (
+                ["modified", "added", "removed", "copied", "renamed"].includes(
+                  status,
+                )
+              ) {
+                if (status === "renamed" || status === "copied") {
+                  ret.fileStatuses.push({
+                    type: status === "renamed" ? "R" : "C",
+                    file: path.basename(targetPath),
+                    path: path.join(this.repositoryRoot, targetPath),
+                    renamedFrom: sourcePath,
+                  });
                 } else {
-                  throw new Error(
-                    `Unexpected diff custom summary line: ${line}`,
+                  ret.fileStatuses.push({
+                    type:
+                      status === "added"
+                        ? "A"
+                        : status === "removed"
+                          ? "D"
+                          : "M",
+                    file: path.basename(targetPath),
+                    path: path.join(this.repositoryRoot, targetPath),
+                  });
+                }
+                if (conflict === "true") {
+                  ret.conflictedFiles.add(
+                    path.join(this.repositoryRoot, targetPath),
                   );
                 }
               } else {
-                const changeMatch = changeRegex.exec(line);
-                if (changeMatch) {
-                  const [_, type, file] = changeMatch;
+                throw new Error(`Unexpected diff custom summary line: ${line}`);
+              }
+            } else {
+              const changeMatch = changeRegex.exec(line);
+              if (changeMatch) {
+                const [_, type, file] = changeMatch;
 
-                  if (type === "R" || type === "C") {
-                    const parsedPaths = parseRenamePaths(file);
-                    if (parsedPaths) {
-                      ret.fileStatuses.push({
-                        type: type,
-                        file: parsedPaths.toPath,
-                        path: path.join(
-                          this.repositoryRoot,
-                          parsedPaths.toPath,
-                        ),
-                        renamedFrom: parsedPaths.fromPath,
-                      });
-                    } else {
-                      throw new Error(
-                        `Unexpected ${type === "R" ? "rename" : "copy"} line: ${line}`,
-                      );
-                    }
-                  } else {
-                    const normalizedFile = path
-                      .normalize(file)
-                      .replace(/\\/g, "/");
+                if (type === "R" || type === "C") {
+                  const parsedPaths = parseRenamePaths(file);
+                  if (parsedPaths) {
                     ret.fileStatuses.push({
-                      type: type as "A" | "M" | "D",
-                      file: normalizedFile,
-                      path: path.join(this.repositoryRoot, normalizedFile),
+                      type: type,
+                      file: parsedPaths.toPath,
+                      path: path.join(this.repositoryRoot, parsedPaths.toPath),
+                      renamedFrom: parsedPaths.fromPath,
                     });
+                  } else {
+                    throw new Error(
+                      `Unexpected ${type === "R" ? "rename" : "copy"} line: ${line}`,
+                    );
                   }
                 } else {
-                  throw new Error(`Unexpected diff summary line: ${line}`);
+                  const normalizedFile = path
+                    .normalize(file)
+                    .replace(/\\/g, "/");
+                  ret.fileStatuses.push({
+                    type: type as "A" | "M" | "D",
+                    file: normalizedFile,
+                    path: path.join(this.repositoryRoot, normalizedFile),
+                  });
                 }
+              } else {
+                throw new Error(`Unexpected diff summary line: ${line}`);
               }
             }
-            break;
           }
         }
       }
@@ -1170,8 +1218,38 @@ export class JJRepository {
         this.spawnJJ(
           [
             "new",
+            ...(revs ? [...revs] : []),
             ...(message ? ["-m", message] : []),
-            ...(revs ? ["-r", ...revs] : []),
+          ],
+          {
+            timeout: 5000,
+            cwd: this.repositoryRoot,
+          },
+        ),
+      );
+    } catch (error) {
+      if (error instanceof Error) {
+        const match = error.message.match(/error:\s*([\s\S]+)$/i);
+        if (match) {
+          const errorMessage = match[1];
+          throw new Error(errorMessage);
+        } else {
+          throw error;
+        }
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  async commit(message?: string, revset?: string) {
+    try {
+      return await handleJJCommand(
+        this.spawnJJ(
+          [
+            "commit",
+            ...(revset ? ["-r", revset] : []),
+            ...(message ? ["-m", message] : []),
           ],
           {
             timeout: 5000,
@@ -1887,6 +1965,15 @@ export class JJRepository {
       }
     }
   }
+
+  async abandon(rev: string) {
+    return await handleJJCommand(
+      this.spawnJJ(["abandon", "-r", rev], {
+        timeout: 5000,
+        cwd: this.repositoryRoot,
+      }),
+    );
+  }
 }
 
 export type FileStatusType = "A" | "M" | "D" | "R" | "C";
@@ -1901,7 +1988,7 @@ export type FileStatus = {
 export interface Change {
   changeId: string;
   commitId: string;
-  bookmarks?: string[];
+  bookmarks: string[];
   description: string;
   isEmpty: boolean;
   isConflict: boolean;
@@ -1914,6 +2001,9 @@ export interface ChangeWithDetails extends Change {
     email: string;
   };
   authoredDate: string;
+  parentChangeIds: string[];
+  isCurrentWorkingCopy: boolean;
+  isSynced: boolean;
 }
 
 export type RepositoryStatus = {
@@ -1953,6 +2043,7 @@ async function parseJJStatus(
     isEmpty: false,
     isConflict: false,
     isImmutable: false,
+    bookmarks: [],
   };
   const parentCommits: Change[] = [];
 
@@ -2078,7 +2169,7 @@ async function parseJJStatus(
         commitId: await stripAnsiCodes(commitId),
         bookmarks: bookmarks
           ? (await stripAnsiCodes(bookmarks)).split(/\s+/)
-          : undefined,
+          : [],
         description: cleanedDescription,
         isEmpty,
         isConflict,

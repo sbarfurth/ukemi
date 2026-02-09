@@ -22,6 +22,11 @@ import {
 import { match } from "arktype";
 import { getActiveTextEditorDiff, pathEquals } from "./utils";
 import { openDiff, openFile } from "./open_file";
+import {
+  GraphTreeDataProvider,
+  GraphTreeItem,
+  GraphTreeView,
+} from "./graphTreeView";
 import { getConfig } from "./config";
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -123,14 +128,11 @@ export async function activate(context: vscode.ExtensionContext) {
       initialSelectedRepo,
       context,
     );
-    context.subscriptions.push(graphWebview);
-    onDidSetSelectedRepository(
-      async () => {
-        await graphWebview.setSelectedRepository(getSelectedRepo());
-      },
-      undefined,
-      context.subscriptions,
+
+    const graphTreeDataProvider = new GraphTreeDataProvider(
+      initialSelectedRepo,
     );
+    const graphTreeView = new GraphTreeView(graphTreeDataProvider);
 
     const operationLogTreeDataProvider = new OperationLogTreeDataProvider(
       initialSelectedRepo,
@@ -138,10 +140,20 @@ export async function activate(context: vscode.ExtensionContext) {
     const operationLogManager = new OperationLogManager(
       operationLogTreeDataProvider,
     );
-    context.subscriptions.push(operationLogManager);
+
+    context.subscriptions.push(
+      graphWebview,
+      graphTreeView,
+      operationLogManager,
+    );
     onDidSetSelectedRepository(
       async () => {
-        await operationLogManager.setSelectedRepo(getSelectedRepo());
+        const selectedRepo = getSelectedRepo();
+        await Promise.all([
+          graphWebview.setSelectedRepository(selectedRepo),
+          graphTreeView.setSelectedRepo(selectedRepo),
+          operationLogManager.setSelectedRepo(selectedRepo),
+        ]);
       },
       undefined,
       context.subscriptions,
@@ -149,14 +161,17 @@ export async function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
       workspaceSCM.onDidRepoUpdate(({ repoSCM }) => {
+        if (graphWebview.repository.repositoryRoot === repoSCM.repositoryRoot) {
+          void graphWebview.refresh();
+        }
+        if (graphTreeView.getRepositoryRoot() === repoSCM.repositoryRoot) {
+          void graphTreeView.refresh();
+        }
         if (
           operationLogManager.operationLogTreeDataProvider.getSelectedRepo()
             .repositoryRoot === repoSCM.repositoryRoot
         ) {
           void operationLogManager.refresh();
-        }
-        if (graphWebview.repository.repositoryRoot === repoSCM.repositoryRoot) {
-          void graphWebview.refresh();
         }
       }),
     );
@@ -1359,6 +1374,93 @@ export async function activate(context: vscode.ExtensionContext) {
             );
           }
         },
+      ),
+    );
+
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
+        "jj.copyFullChangeId",
+        (item: GraphTreeItem) => {
+          vscode.env.clipboard.writeText(item.getChangeId());
+        },
+      ),
+    );
+
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
+        "jj.copyShortChangeId",
+        (item: GraphTreeItem) => {
+          vscode.env.clipboard.writeText(item.getChangeId().substring(0, 8));
+        },
+      ),
+    );
+
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
+        "jj.copyDescription",
+        (item: GraphTreeItem) => {
+          vscode.env.clipboard.writeText(item.getDescription());
+        },
+      ),
+    );
+
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
+        "jj.update",
+        showLoading(async (item: GraphTreeItem) => {
+          try {
+            await item.getRepository().new(undefined, [item.getChangeId()]);
+          } catch (error) {
+            vscode.window.showErrorMessage(
+              `Failed to update to change${error instanceof Error ? `: ${error.message}` : ""}`,
+            );
+          }
+        }),
+      ),
+    );
+
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
+        "jj.abandon",
+        showLoading(async (item: GraphTreeItem) => {
+          const result = await vscode.window.showWarningMessage(
+            `Are you sure that you want to abandon ${item.getChangeId().slice(0, 8)}?`,
+            { modal: true },
+            "Abandon",
+          );
+          if (result !== "Abandon") {
+            return;
+          }
+          try {
+            await item.getRepository().abandon(item.getChangeId());
+          } catch (error) {
+            vscode.window.showErrorMessage(
+              `Failed to abandon change${error instanceof Error ? `: ${error.message}` : ""}`,
+            );
+          }
+        }),
+      ),
+    );
+
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
+        "jj.commit",
+        showLoading(async (sourceControl: vscode.SourceControl) => {
+          try {
+            const repository =
+              workspaceSCM.getRepositoryFromSourceControl(sourceControl);
+            if (!repository) {
+              throw new Error("Repository not found");
+            }
+            const message = sourceControl.inputBox.value.trim() || undefined;
+            await repository.commit(message);
+            sourceControl.inputBox.value = "";
+          } catch (error) {
+            vscode.window.showErrorMessage(
+              `Failed to commit changes${error instanceof Error ? `: ${error.message}` : ""}`,
+            );
+          }
+        }),
       ),
     );
 
