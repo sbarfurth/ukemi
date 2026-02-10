@@ -27,7 +27,11 @@ export class JJDecorationProvider implements FileDecorationProvider {
   readonly onDidChangeFileDecorations: Event<Uri[]> =
     this._onDidChangeDecorations.event;
   private decorations = new Map<string, FileDecoration>();
-  private trackedFiles = new Set<string>();
+  /**
+   * Set of all files tracked in the repository. Set to `null` if the repository
+   * does not support explicit file tracking.
+   */
+  private trackedFiles: Set<string> | null = null;
   private hasData = false;
 
   /**
@@ -43,10 +47,10 @@ export class JJDecorationProvider implements FileDecorationProvider {
    */
   onRefresh(
     fileStatusesByChange: Map<string, FileStatus[]>,
-    trackedFiles: Set<string>,
+    trackedFiles: Set<string> | null,
     conflictedFiles: Map<string, Set<string>>,
   ) {
-    if (process.platform === "win32") {
+    if (trackedFiles && process.platform === "win32") {
       trackedFiles = convertSetToLowercase(trackedFiles);
     }
     const nextDecorations = new Map<string, FileDecoration>();
@@ -98,14 +102,21 @@ export class JJDecorationProvider implements FileDecorationProvider {
       }
     }
 
-    const changedTrackedFiles = new Set<string>([
-      ...[...trackedFiles.values()].filter(
-        (file) => !this.trackedFiles.has(file),
-      ),
-      ...[...this.trackedFiles.values()].filter(
-        (file) => !trackedFiles.has(file),
-      ),
-    ]);
+    const changedTrackedFiles = new Set<string>();
+    // Newly tracked files appear in the passed set but not in the tracked files
+    // stored in the instance.
+    for (const file of trackedFiles ?? []) {
+      if (!this.trackedFiles || !this.trackedFiles.has(file)) {
+        changedTrackedFiles.add(file);
+      }
+    }
+    // Newly untracked files appear in the tracked files stored in the instance
+    // but not in the passed set.
+    for (const file of this.trackedFiles ?? []) {
+      if (!trackedFiles || !trackedFiles.has(file)) {
+        changedTrackedFiles.add(file);
+      }
+    }
 
     this.decorations = nextDecorations;
     this.trackedFiles = trackedFiles;
@@ -157,7 +168,10 @@ export class JJDecorationProvider implements FileDecorationProvider {
     if (rev === "@" && !this.decorations.has(key)) {
       const fsPath =
         process.platform === "win32" ? uri.fsPath.toLowerCase() : uri.fsPath;
-      if (!this.trackedFiles.has(fsPath)) {
+      // Only mark files as ignored with a decoration if file tracking is
+      // enabled and tracked files is not `null`. Otherwise all files are
+      // assumed to be tracked.
+      if (this.trackedFiles && !this.trackedFiles.has(fsPath)) {
         return {
           color: new ThemeColor("jjDecoration.ignoredResourceForeground"),
         };

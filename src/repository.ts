@@ -517,7 +517,7 @@ class RepositorySourceControlManager {
   operationId: string | undefined; // the latest operation id seen by this manager
   fileStatusesByChange: Map<string, FileStatus[]> = new Map();
   conflictedFilesByChange: Map<string, Set<string>> = new Map();
-  trackedFiles: Set<string> = new Set();
+  trackedFiles: Set<string> | null = null;
   status: RepositoryStatus | undefined;
   parentShowResults: Map<string, Show> = new Map();
 
@@ -617,7 +617,6 @@ class RepositorySourceControlManager {
   }
 
   async updateState(status: RepositoryStatus) {
-    const newTrackedFiles = new Set<string>();
     const newParentShowResults = new Map<string, Show>();
     const newFileStatusesByChange = new Map<string, FileStatus[]>([
       ["@", status.fileStatuses],
@@ -626,14 +625,22 @@ class RepositorySourceControlManager {
       ["@", status.conflictedFiles],
     ]);
 
-    const trackedFilesList = await this.repository.fileList();
-    for (const t of trackedFilesList) {
-      const pathParts = t.split(path.sep);
-      let currentPath = this.repositoryRoot + path.sep;
-      for (const p of pathParts) {
-        currentPath += p;
-        newTrackedFiles.add(currentPath);
-        currentPath += path.sep;
+    // Only check for tracked files in store backends we know. Unknown backends
+    // may not be suitable for listing all their contents. Otherwise tracked
+    // files will are set to `null` to signal they are unsupported.
+    let newTrackedFiles: Set<string> | null = null;
+    const isKnownStoreBackend = await this.repository.isKnownStoreBackend();
+    if (isKnownStoreBackend) {
+      newTrackedFiles = new Set<string>();
+      const trackedFilesList = await this.repository.fileList();
+      for (const t of trackedFilesList) {
+        const pathParts = t.split(path.sep);
+        let currentPath = this.repositoryRoot + path.sep;
+        for (const p of pathParts) {
+          currentPath += p;
+          newTrackedFiles.add(currentPath);
+          currentPath += path.sep;
+        }
       }
     }
 
@@ -807,6 +814,8 @@ export class JJRepository {
   statusCache: RepositoryStatus | undefined;
   gitFetchPromise: Promise<void> | undefined;
 
+  private isKnownStoreBackendCache: boolean | undefined;
+
   constructor(
     public repositoryRoot: string,
     private jjPath: string,
@@ -819,6 +828,29 @@ export class JJRepository {
     options: Parameters<typeof spawn>[2] & { cwd: string },
   ) {
     return spawnJJ(this.jjPath, [...args, ...this.jjConfigArgs], options);
+  }
+
+  async isKnownStoreBackend(): Promise<boolean> {
+    if (this.isKnownStoreBackendCache !== undefined) {
+      return this.isKnownStoreBackendCache;
+    }
+    const root = (
+      await handleJJCommand(
+        this.spawnJJ(["root"], {
+          timeout: 5000,
+          cwd: this.repositoryRoot,
+        }),
+      )
+    )
+      .toString()
+      .trim();
+    const storeTypeRaw = await fs.readFile(
+      path.join(root, ".jj/repo/store/type"),
+      "utf8",
+    );
+    const storeType = storeTypeRaw.trim().toLowerCase();
+    this.isKnownStoreBackendCache = ["git", "simple"].includes(storeType);
+    return this.isKnownStoreBackendCache;
   }
 
   /**
