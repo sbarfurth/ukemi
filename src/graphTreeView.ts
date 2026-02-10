@@ -109,10 +109,6 @@ export class GraphTreeItem extends TreeItem {
     return this.change.description;
   }
 
-  isRoot(): boolean {
-    return this.change.parentChangeIds.length === 0;
-  }
-
   getChildrenChangeIds(): string[] {
     return this.childrenChangeIds;
   }
@@ -141,6 +137,7 @@ export class GraphTreeDataProvider implements TreeDataProvider<GraphTreeItem> {
     this.onDidChangeTreeDataInternal.event;
 
   private items: GraphTreeItem[] = [];
+  private itemChangeIds = new Set<string>();
 
   constructor(private selectedRepository: JJRepository) {}
 
@@ -155,7 +152,11 @@ export class GraphTreeDataProvider implements TreeDataProvider<GraphTreeItem> {
         childrenChangeIds.includes(item.getChangeId()),
       );
     }
-    return this.items.filter((item) => item.isRoot());
+    // The item is a root item in the graph if none of its parent change IDs are
+    // present in the itemChangeIds set.
+    return this.items.filter((item) =>
+      item.getParentChangeIds().every((id) => !this.itemChangeIds.has(id)),
+    );
   }
 
   async refresh(treeView: TreeView<GraphTreeItem>) {
@@ -172,6 +173,7 @@ export class GraphTreeDataProvider implements TreeDataProvider<GraphTreeItem> {
       useConfigLogRevset ? [] : [revset],
     );
     const items: GraphTreeItem[] = [];
+    const itemChangeIds = new Set<string>();
     const itemsToSelect: GraphTreeItem[] = [];
     const workingCopyParents = new Set(
       results.find((r) => r.change.isCurrentWorkingCopy)?.change
@@ -191,11 +193,13 @@ export class GraphTreeDataProvider implements TreeDataProvider<GraphTreeItem> {
         .map((r) => r.change.changeId);
       const item = new GraphTreeItem(result.change, childrenChangeIds, this);
       items.push(item);
+      itemChangeIds.add(result.change.changeId);
       if (workingCopyParents.has(item.getChangeId())) {
         itemsToSelect.push(item);
       }
     }
     this.items = items;
+    this.itemChangeIds = itemChangeIds;
     if (
       prev.length !== this.items.length ||
       !prev.every((change, i) => change.equals(this.items[i]))

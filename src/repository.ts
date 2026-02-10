@@ -1024,6 +1024,7 @@ export class JJRepository {
             "-T",
             template,
             "--no-graph",
+            "--no-pager",
             ...revsets.flatMap((revset) => ["-r", revset]),
           ],
           {
@@ -1693,7 +1694,7 @@ export class JJRepository {
 
   async operationLog(): Promise<Operation[]> {
     const operationSeparator = "ඞඞඞ\n";
-    const fieldSeparator = "kjjඞ";
+    const fieldSeparator = "ukemiඞ";
     const templateFields = [
       "self.id()",
       "self.description()",
