@@ -1,5 +1,18 @@
 # Change Log
 
+## 0.0.8
+
+* Prevent showing immutable parent in SCM panel. by @sbarfurth in https://github.com/sbarfurth/ukemi/pull/36
+* Provide more customization on change nodes in graph. by @sbarfurth in https://github.com/sbarfurth/ukemi/pull/37
+* Show progress indicator when checking out a revision by @dakhlopkau in https://github.com/sbarfurth/ukemi/pull/35
+* Add commit tree view. by @sbarfurth in https://github.com/sbarfurth/ukemi/pull/39
+
+### New Contributors
+
+* @dakhlopkau made their first contribution in https://github.com/sbarfurth/ukemi/pull/35
+
+**Full Changelog**: https://github.com/sbarfurth/ukemi/compare/0.0.7...0.0.8
+
 ## 0.0.7
 
 * Allow configuring graph revset. by @sbarfurth in https://github.com/sbarfurth/ukemi/pull/28
