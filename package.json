@@ -316,7 +316,12 @@
         },
         {
           "command": "jj.abandon",
-          "when": "view == jjGraph",
+          "when": "view == jjGraph && viewItem == mutable",
+          "group": "2_item_action@2"
+        },
+        {
+          "command": "jj.abandon",
+          "when": "view == jjGraph && viewItem == mutable",
           "group": "inline"
         }
       ],

@@ -10,6 +10,7 @@ import {
   TreeItemLabel,
   ProviderResult,
   workspace,
+  ThemeIcon,
 } from "vscode";
 import { ChangeWithDetails, JJRepository } from "./repository";
 import path from "path";
@@ -88,10 +89,12 @@ export class GraphTreeItem extends TreeItem {
         : TreeItemCollapsibleState.None,
     );
     this.id = this.change.changeId;
-    if (!this.change.isSynced) {
-      this.description = "upload needed";
-    } else if (this.change.isEmpty) {
+    this.iconPath = this.getIcon();
+    if (this.change.isEmpty) {
       this.description = "empty";
+    }
+    if (!this.change.isImmutable) {
+      this.contextValue = "mutable";
     }
     this.tooltip = getChangeTooltip(change);
     this.command = {
@@ -123,9 +126,25 @@ export class GraphTreeItem extends TreeItem {
 
   equals(other: GraphTreeItem): boolean {
     return (
-      this.change.changeId === other.change.changeId &&
-      this.collapsibleState === other.collapsibleState
+      this.id === other.id &&
+      this.collapsibleState === other.collapsibleState &&
+      this.iconPath === other.iconPath &&
+      this.description === other.description &&
+      this.contextValue === other.contextValue
     );
+  }
+
+  private getIcon(): ThemeIcon | undefined {
+    if (this.change.isImmutable) {
+      return new ThemeIcon("lock");
+    }
+    if (!this.change.isSynced) {
+      return new ThemeIcon("cloud-upload");
+    }
+    if (this.change.bookmarks.length > 0) {
+      return new ThemeIcon("bookmark");
+    }
+    return undefined;
   }
 }
 
