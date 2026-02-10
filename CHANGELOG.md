@@ -1,5 +1,12 @@
 # Change Log
 
+## 0.0.10
+
+* Use icons to denote change state in graph. by @sbarfurth in https://github.com/sbarfurth/ukemi/pull/45
+* Disable file tracking on custom backends. by @sbarfurth in https://github.com/sbarfurth/ukemi/pull/41
+
+**Full Changelog**: https://github.com/sbarfurth/ukemi/compare/0.0.9...0.0.10
+
 ## 0.0.9
 
 * Don't focus tree view after selection. by @sbarfurth in https://github.com/sbarfurth/ukemi/pull/42
