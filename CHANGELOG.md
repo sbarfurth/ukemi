@@ -1,5 +1,12 @@
 # Change Log
 
+## 0.0.9
+
+* Don't focus tree view after selection. by @sbarfurth in https://github.com/sbarfurth/ukemi/pull/42
+* Fix incorrect calculation of root items in graph tree view. by @sbarfurth in https://github.com/sbarfurth/ukemi/pull/43
+
+**Full Changelog**: https://github.com/sbarfurth/ukemi/compare/0.0.8...0.0.9
+
 ## 0.0.8
 
 * Prevent showing immutable parent in SCM panel. by @sbarfurth in https://github.com/sbarfurth/ukemi/pull/36
