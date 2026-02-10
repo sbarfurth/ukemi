@@ -203,7 +203,7 @@ export class GraphTreeDataProvider implements TreeDataProvider<GraphTreeItem> {
       this.onDidChangeTreeDataInternal.fire();
     }
     for (const item of itemsToSelect) {
-      await treeView.reveal(item, { select: true, focus: true });
+      await treeView.reveal(item, { select: true });
     }
   }
 
