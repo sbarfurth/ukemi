@@ -11,9 +11,6 @@ import {
 } from "./operationLogTreeView";
 import { JJGraphWebview } from "./graphWebview";
 import { getParams, toJJUri } from "./uri";
-import { logger } from "./logger";
-import { LogOutputChannelTransport } from "./vendor/winston-transport-vscode/logOutputChannelTransport";
-import winston from "winston";
 import { linesDiffComputers } from "./vendor/vscode/editor/common/diff/linesDiffComputers";
 import {
   ILinesDiffComputer,
@@ -28,22 +25,11 @@ import {
   GraphTreeView,
 } from "./graphTreeView";
 import { getConfig } from "./config";
+import { getLogger } from "./logger";
 
 export async function activate(context: vscode.ExtensionContext) {
-  const outputChannel = vscode.window.createOutputChannel("ukemi", {
-    log: true,
-  });
-  const loggerTransport = new LogOutputChannelTransport({
-    outputChannel,
-    format: winston.format.simple(),
-  });
-  logger.add(loggerTransport);
-  context.subscriptions.push({
-    dispose() {
-      logger.remove(loggerTransport);
-      outputChannel.dispose();
-    },
-  });
+  const logger = getLogger();
+  context.subscriptions.push(logger);
 
   logger.info("Extension activated");
 
