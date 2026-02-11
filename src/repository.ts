@@ -4,7 +4,6 @@ import spawn from "cross-spawn";
 import fs from "fs/promises";
 import { getParams, toJJUri } from "./uri";
 import type { JJDecorationProvider } from "./decorationProvider";
-import { logger } from "./logger";
 import type { ChildProcess } from "child_process";
 import { anyEvent, pathEquals } from "./utils";
 import { JJFileSystemProvider } from "./fileSystemProvider";
@@ -12,6 +11,7 @@ import * as os from "os";
 import * as crypto from "crypto";
 import which from "which";
 import { getConfig } from "./config";
+import { getLogger } from "./logger";
 
 async function getJJVersion(jjPath: string): Promise<string> {
   try {
@@ -105,7 +105,7 @@ async function getConfigArgs(
       const configValue = await fs.readFile(configPath, "utf8");
       return [configOption, configValue];
     } catch (e) {
-      logger.error(`Failed to read config file at ${configPath}: ${String(e)}`);
+      getLogger().error(`Failed to read config file at ${configPath}: ${String(e)}`);
       throw e;
     }
   } else {
@@ -190,7 +190,7 @@ function spawnJJ(
     timeout: getCommandTimeout(options.cwd, options.timeout),
   };
 
-  logger.debug(`spawn: ${jjPath} ${args.join(" ")}`, {
+  getLogger().debug(`spawn: ${jjPath} ${args.join(" ")}`, {
     spawnOptions: finalOptions,
   });
 
@@ -335,9 +335,9 @@ export class WorkspaceSourceControlManager {
         }
       } catch (e) {
         if (e instanceof Error && e.message.includes("no jj repo in")) {
-          logger.debug(`No jj repo in ${workspaceFolder.uri.fsPath}`);
+          getLogger().debug(`No jj repo in ${workspaceFolder.uri.fsPath}`);
         } else {
-          logger.error(
+          getLogger().error(
             `Error while initializing ukemi in workspace ${workspaceFolder.uri.fsPath}: ${String(e)}`,
           );
         }
@@ -350,7 +350,7 @@ export class WorkspaceSourceControlManager {
       const oldValue = this.repoInfos?.get(key);
       if (!oldValue) {
         isAnyRepoChanged = true;
-        logger.info(`Detected new jj repo in workspace: ${key}`);
+        getLogger().info(`Detected new jj repo in workspace: ${key}`);
       } else if (
         oldValue.jjVersion !== value.jjVersion ||
         oldValue.jjPath.filepath !== value.jjPath.filepath ||
@@ -358,7 +358,7 @@ export class WorkspaceSourceControlManager {
         oldValue.repoRoot !== value.repoRoot
       ) {
         isAnyRepoChanged = true;
-        logger.info(
+        getLogger().info(
           `Detected change that requires reinitialization in workspace: ${key}`,
         );
       }
@@ -366,7 +366,7 @@ export class WorkspaceSourceControlManager {
     for (const key of this.repoInfos?.keys() || []) {
       if (!newRepoInfos.has(key)) {
         isAnyRepoChanged = true;
-        logger.info(`Detected jj repo removal in workspace: ${key}`);
+        getLogger().info(`Detected jj repo removal in workspace: ${key}`);
       }
     }
     this.repoInfos = newRepoInfos;
@@ -377,7 +377,7 @@ export class WorkspaceSourceControlManager {
         workspaceFolder,
         { repoRoot, jjPath, jjVersion, jjConfigArgs },
       ] of newRepoInfos.entries()) {
-        logger.info(
+        getLogger().info(
           `Initializing ukemi in workspace ${workspaceFolder}. Using ${jjVersion} at ${jjPath.filepath} (${jjPath.source}).`,
         );
         const repoSCM = new RepositorySourceControlManager(
@@ -1490,7 +1490,7 @@ export class JJRepository {
             try {
               process.kill(parseInt(fakeEditorPID), "SIGTERM");
             } catch (killError) {
-              logger.error(
+              getLogger().error(
                 `Failed to kill fakeeditor (PID: ${fakeEditorPID}) after validation error: ${killError instanceof Error ? killError : ""}`,
               );
             }
@@ -1512,7 +1512,7 @@ export class JJRepository {
             try {
               process.kill(parseInt(fakeEditorPID), "SIGTERM");
             } catch (killError) {
-              logger.error(
+              getLogger().error(
                 `Failed to kill fakeeditor (PID: ${fakeEditorPID}) after validation error: ${killError instanceof Error ? killError : ""}`,
               );
             }
@@ -1550,7 +1550,7 @@ export class JJRepository {
               try {
                 process.kill(parseInt(fakeEditorPID), "SIGTERM");
               } catch (killError) {
-                logger.error(
+                getLogger().error(
                   `Failed to send SIGTERM to fakeeditor (PID: ${fakeEditorPID}) during error handling: ${killError instanceof Error ? killError : ""}`,
                 );
               }
@@ -1977,7 +1977,7 @@ export class JJRepository {
         try {
           return await fs.readFile(fullPath);
         } catch (e) {
-          logger.error(
+          getLogger().error(
             `Failed to read original file content from left folder at ${fullPath}: ${String(
               e,
             )}`,
@@ -1992,7 +1992,7 @@ export class JJRepository {
       try {
         process.kill(parseInt(fakeEditorPID), "SIGTERM");
       } catch (killError) {
-        logger.error(
+        getLogger().error(
           `Failed to kill fakeeditor (PID: ${fakeEditorPID}) in getDiffOriginal: ${killError instanceof Error ? killError : ""}`,
         );
       }
