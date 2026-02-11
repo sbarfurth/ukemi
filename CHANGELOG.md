@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.0.11
+
+* Prevent switching the view to SCM view after changes. by @sbarfurth in https://github.com/sbarfurth/ukemi/pull/47
+
+**Full Changelog**: https://github.com/sbarfurth/ukemi/compare/0.0.10...0.0.11
+
 ## 0.0.10
 
 * Use icons to denote change state in graph. by @sbarfurth in https://github.com/sbarfurth/ukemi/pull/45
