@@ -51,6 +51,14 @@ export class GraphTreeView {
       treeDataProvider: this.treeDataProvider,
     });
     this.updateTitle(this.treeDataProvider.getSelectedRepo().repositoryRoot);
+    this.graphTreeView.onDidChangeVisibility((e) => {
+      // Update the selection whenver the tree view becomes visible. We cannot
+      // do any selection updates while the view is hidden since would cause
+      // disruptive panel switching.
+      if (e.visible) {
+        void this.treeDataProvider.updateSelection(this.graphTreeView);
+      }
+    });
     this.subscriptions.push(this.graphTreeView);
   }
 
@@ -157,6 +165,7 @@ export class GraphTreeDataProvider implements TreeDataProvider<GraphTreeItem> {
 
   private items: GraphTreeItem[] = [];
   private itemChangeIds = new Set<string>();
+  private workingCopyChange: ChangeWithDetails | undefined;
 
   constructor(private selectedRepository: JJRepository) {}
 
@@ -193,14 +202,10 @@ export class GraphTreeDataProvider implements TreeDataProvider<GraphTreeItem> {
     );
     const items: GraphTreeItem[] = [];
     const itemChangeIds = new Set<string>();
-    const itemsToSelect: GraphTreeItem[] = [];
-    const workingCopyParents = new Set(
-      results.find((r) => r.change.isCurrentWorkingCopy)?.change
-        .parentChangeIds,
-    );
     for (const result of results) {
       // Don't render the working copy in the graph.
       if (result.change.isCurrentWorkingCopy) {
+        this.workingCopyChange = result.change;
         continue;
       }
       const childrenChangeIds = results
@@ -213,9 +218,6 @@ export class GraphTreeDataProvider implements TreeDataProvider<GraphTreeItem> {
       const item = new GraphTreeItem(result.change, childrenChangeIds, this);
       items.push(item);
       itemChangeIds.add(result.change.changeId);
-      if (workingCopyParents.has(item.getChangeId())) {
-        itemsToSelect.push(item);
-      }
     }
     this.items = items;
     this.itemChangeIds = itemChangeIds;
@@ -225,9 +227,7 @@ export class GraphTreeDataProvider implements TreeDataProvider<GraphTreeItem> {
     ) {
       this.onDidChangeTreeDataInternal.fire();
     }
-    for (const item of itemsToSelect) {
-      await treeView.reveal(item, { select: true });
-    }
+    await this.updateSelection(treeView);
   }
 
   async setSelectedRepo(repo: JJRepository, treeView: TreeView<GraphTreeItem>) {
@@ -248,5 +248,19 @@ export class GraphTreeDataProvider implements TreeDataProvider<GraphTreeItem> {
       return undefined;
     }
     return this.items.find((item) => item.getChangeId() === parentChangeIds[0]);
+  }
+
+  async updateSelection(treeView: TreeView<GraphTreeItem>) {
+    // Only reveal items if the tree view is currently visible. Otherwise we
+    // would end up potentially switching panels in the sidebar. We always
+    // perform automatic re-selection on visibility change.
+    if (!treeView.visible || !this.workingCopyChange) {
+      return;
+    }
+    for (const item of this.items) {
+      if (this.workingCopyChange.parentChangeIds.includes(item.getChangeId())) {
+        await treeView.reveal(item, { select: true, focus: false });
+      }
+    }
   }
 }
