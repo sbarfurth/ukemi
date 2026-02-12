@@ -167,6 +167,7 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
       showBookmarks,
       showCommitId,
       showTimestamp,
+      viewLayout,
     } = getGraphConfig();
 
     // Collect all changes in a single pass (graph structure + data)
@@ -187,11 +188,11 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
       command: "updateGraph",
       changes: changes,
       workingCopyId,
-      preserveScroll: true,
       showAuthor,
       showBookmarks,
       showCommitId,
       showTimestamp,
+      viewLayout,
     });
   }
 
@@ -350,3 +351,5 @@ export function parseJJLog(output: string): ChangeNode[] {
   }
   return changeNodes;
 }
+
+

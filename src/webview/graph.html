@@ -47,6 +47,7 @@
                         message.showBookmarks,
                         message.showCommitId,
                         message.showTimestamp,
+                        message.viewLayout,
                     );
                     break;
             }
@@ -119,6 +120,36 @@
             return g;
         }
 
+        function createIdSpan(fullId, shortId, className) {
+            const span = document.createElement("span");
+            span.className = className;
+            span.textContent = shortId;
+            const remaining = document.createElement("span");
+            remaining.className = className + '-remaining';
+            remaining.textContent = fullId.substring(shortId.length, 8);
+            span.appendChild(remaining);
+            return span;
+        }
+
+        function createBookmarks(bookmarks) {
+            const bookmarkDiv = document.createElement("div");
+            bookmarkDiv.className = 'bookmarks';
+            bookmarks.forEach(bookmark => {
+                const badge = document.createElement("span");
+                badge.className = 'bookmark-badge';
+                badge.textContent = bookmark;
+                bookmarkDiv.appendChild(badge);
+            });
+            return bookmarkDiv;
+        }
+
+        function createSeparator() {
+            const sep = document.createElement("span");
+            sep.className = 'separator';
+            sep.textContent = " • ";
+            return sep;
+        }
+
         function updateConnections() {
             const nodes = document.querySelectorAll('.change-node');
 
@@ -138,6 +169,7 @@
             nodes.forEach((node, index) => {
                 const rawParentIds = node.dataset.parentIds;
                 const parentIds = JSON.parse(node.dataset.parentIds || '[]');
+
                 const nodeRect = node.getBoundingClientRect();
 
                 // Convert to SVG coordinates with vertical centering
@@ -153,6 +185,7 @@
 
                         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
                         path.setAttribute("class", "connection-line");
+
 
                         const isLatestParent = index === 0;
                         const isAdjacent = !Array.from(nodes).some(otherNode => {
@@ -336,7 +369,7 @@
             return [fromNode, toNode];
         }
 
-        function updateGraph(changes, workingCopyId, preserveScroll = false, showAuthor = true, showBookmarks = true, showCommitId = true, showTimestamp = 'always') {
+        function updateGraph(changes, workingCopyId, preserveScroll = false, showAuthor = true, showBookmarks = true, showCommitId = true, showTimestamp = 'always', viewLayout = 'floating') {
             // Save current scroll position only when preserveScroll is true
             const scrollTop = preserveScroll ?
                 (window.scrollY || document.documentElement.scrollTop) : 0;
@@ -345,6 +378,9 @@
             const circlesContainer = document.getElementById('node-circles');
             nodesContainer.innerHTML = '';
             circlesContainer.innerHTML = '';
+
+            // Set view layout class on container
+            nodesContainer.className = viewLayout;
 
             // Calculate maximum curve offset needed
             let maxParentCount = 0;
@@ -361,6 +397,11 @@
 
             changes.forEach(change => {
                 if (!change.contextValue) return;
+
+                const shouldShowBookmarks = showBookmarks && change.bookmarks && change.bookmarks.length > 0;
+                const shouldShowAuthor = showAuthor && change.email;
+                const shouldShowTimestamp = (showTimestamp === 'always' || (showTimestamp === 'immutable_only' && change.isImmutable)) && change.timestampAgo;
+
                 const node = document.createElement('div');
                 node.className = 'change-node';
                 node.title = change.tooltip;
@@ -372,95 +413,96 @@
                 const textContent = document.createElement('div');
                 textContent.className = 'text-content';
 
-                // 1. Description (Normal Weight)
-                const nodeDescription = document.createElement("div");
-                nodeDescription.className = 'commit-message';
-                nodeDescription.textContent = change.description;
-                textContent.append(nodeDescription);
+                if (viewLayout === 'compact') {
+                    // Column 1: IDs
+                    const idColumn = document.createElement('div');
+                    idColumn.className = 'id-column';
 
-                // 2. Metadata Row (IDs + Bookmarks)
-                const metaInfo = document.createElement("div");
-                metaInfo.className = 'meta-info';
+                    const changeIdDiv = document.createElement('div');
+                    changeIdDiv.className = 'change-id-container';
+                    changeIdDiv.appendChild(createIdSpan(change.contextValue, change.shortestChangeId, 'change-id'));
+                    idColumn.appendChild(changeIdDiv);
 
-                const shouldShowCommitId = showCommitId && change.commitId;
-                const shouldShowBookmarks = showBookmarks && change.bookmarks && change.bookmarks.length > 0;
-                const shouldShowAuthor = showAuthor && change.email;
-                const shouldAlwaysShowTimestamp = showTimestamp === 'always' && change.timestampAgo;
-                const shouldShowImmutableTimestamp = showTimestamp === 'immutable_only' && change.isImmutable && change.timestampAgo;
-                const shouldShowTimestamp = shouldAlwaysShowTimestamp || shouldShowImmutableTimestamp;
+                    if (showCommitId && change.commitId) {
+                        const commitIdDiv = document.createElement('div');
+                        commitIdDiv.className = 'commit-id-container';
+                        commitIdDiv.appendChild(createIdSpan(change.commitId, change.shortestCommitId, 'commit-id'));
+                        idColumn.appendChild(commitIdDiv);
+                    }
 
-                // Change ID
-                const changeIdSpan = document.createElement("span");
-                changeIdSpan.className = 'change-id';
-                changeIdSpan.textContent = change.shortestChangeId;
-                metaInfo.append(changeIdSpan);
+                    textContent.appendChild(idColumn);
 
-                const changeIdRemainingSpan = document.createElement("span");
-                changeIdRemainingSpan.className = 'change-id-remaining';
-                changeIdRemainingSpan.textContent = change.contextValue.substring(change.shortestChangeId.length, 8);
-                changeIdSpan.append(changeIdRemainingSpan);
+                    // Column 2: Info (Description + Meta)
+                    const infoColumn = document.createElement('div');
+                    infoColumn.className = 'info-column';
 
-                // Commit ID
-                if (shouldShowCommitId) {
-                    const sep = document.createElement("span");
-                    sep.className = 'separator';
-                    sep.textContent = " • ";
-                    metaInfo.append(sep);
+                    if (shouldShowBookmarks) {
+                        infoColumn.appendChild(createBookmarks(change.bookmarks));
+                    }
 
-                    const commitIdSpan = document.createElement("span");
-                    commitIdSpan.className = 'commit-id';
-                    commitIdSpan.textContent = change.shortestCommitId;
-                    metaInfo.append(commitIdSpan);
+                    const nodeDescription = document.createElement("div");
+                    nodeDescription.className = 'commit-message';
+                    nodeDescription.textContent = change.description;
+                    infoColumn.appendChild(nodeDescription);
 
-                    const commitIdRemainingSpan = document.createElement("span");
-                    commitIdRemainingSpan.className = 'commit-id-remaining';
-                    commitIdRemainingSpan.textContent = change.commitId.substring(change.shortestCommitId.length, 8);
-                    commitIdSpan.append(commitIdRemainingSpan);
+                    if (shouldShowTimestamp) {
+                        const timeSpan = document.createElement("span");
+                        timeSpan.className = 'timestamp';
+                        timeSpan.textContent = change.timestampAgo;
+                        infoColumn.appendChild(timeSpan);
+                    }
+
+                    if (shouldShowAuthor) {
+                        const emailSpan = document.createElement("span");
+                        emailSpan.className = 'author-email';
+                        emailSpan.textContent = change.email;
+                        infoColumn.appendChild(emailSpan);
+                    }
+
+                    textContent.appendChild(infoColumn);
+                } else {
+                    // Floating Mode
+                    const nodeDescription = document.createElement("div");
+                    nodeDescription.className = 'commit-message';
+                    nodeDescription.textContent = change.description;
+                    textContent.appendChild(nodeDescription);
+
+                    const metaInfo = document.createElement("div");
+                    metaInfo.className = 'meta-info';
+
+                    metaInfo.appendChild(createIdSpan(change.contextValue, change.shortestChangeId, 'change-id'));
+
+                    if (showCommitId && change.commitId) {
+                        metaInfo.appendChild(createSeparator());
+                        metaInfo.appendChild(createIdSpan(change.commitId, change.shortestCommitId, 'commit-id'));
+                    }
+
+                    if (shouldShowAuthor) {
+                        metaInfo.appendChild(createSeparator());
+                        const emailSpan = document.createElement("span");
+                        emailSpan.className = 'author-email';
+                        emailSpan.textContent = change.email;
+                        metaInfo.appendChild(emailSpan);
+                    }
+
+                    if (shouldShowTimestamp) {
+                        metaInfo.appendChild(createSeparator());
+                        const timeSpan = document.createElement("span");
+                        timeSpan.className = 'timestamp';
+                        timeSpan.textContent = change.timestampAgo;
+                        metaInfo.appendChild(timeSpan);
+                    }
+
+                    textContent.appendChild(metaInfo);
+
+                    if (shouldShowBookmarks) {
+                        textContent.appendChild(createBookmarks(change.bookmarks));
+                    }
                 }
 
-                if (shouldShowAuthor) {
-                    const sep = document.createElement("span");
-                    sep.className = 'separator';
-                    sep.textContent = " • ";
-                    metaInfo.append(sep);
-
-                    const emailSpan = document.createElement("span");
-                    emailSpan.className = 'author-email';
-                    emailSpan.textContent = change.email;
-                    metaInfo.append(emailSpan);
-                }
-
-                if (shouldShowTimestamp) {
-                    const sep = document.createElement("span");
-                    sep.className = 'separator';
-                    sep.textContent = " • ";
-                    metaInfo.append(sep);
-
-                    const timeSpan = document.createElement("span");
-                    timeSpan.className = 'timestamp';
-                    timeSpan.textContent = change.timestampAgo;
-                    metaInfo.append(timeSpan);
-                }
-
-                textContent.append(metaInfo);
-                
-                if (shouldShowBookmarks) {
-                    const bookmarkDiv = document.createElement("div");
-                    bookmarkDiv.className = 'bookmarks';
-
-                    change.bookmarks.forEach(bookmark => {
-                        const badge = document.createElement("span");
-                        badge.className = 'bookmark-badge';
-                        badge.textContent = bookmark;
-                        bookmarkDiv.append(badge);
-                    });
-                    
-                    textContent.append(bookmarkDiv);
-                }
-                
                 node.appendChild(textContent);
 
-                // Create and append edit button
+                // Create and append edit button (keep existing logic)
                 const editButton = document.createElement('button');
                 editButton.className = 'edit-button';
                 editButton.innerHTML = '<i class="codicon codicon-log-in"></i>';
@@ -480,21 +522,6 @@
                 }
                 node.appendChild(editButton);
                 nodesContainer.appendChild(node);
-
-                // Create circle and add it to SVG after node is in DOM
-                const circle = createCircle({
-                    contextValue: change.contextValue,
-                    branchType: change.branchType
-                }, workingCopyId);
-
-                // Get positions relative to SVG
-                const nodeRect = node.getBoundingClientRect();
-                const svgRect = document.getElementById('connections').getBoundingClientRect();
-                const x = nodeRect.left - svgRect.left;
-                const y = nodeRect.top - svgRect.top + (nodeRect.height / 2) - 6; // -6 to account for circle radius
-
-                circle.setAttribute("transform", `translate(${x}, ${y})`);
-                circlesContainer.appendChild(circle);
 
                 // Add hover handlers
                 node.addEventListener('mouseenter', () => {

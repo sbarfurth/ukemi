@@ -12,6 +12,8 @@ export interface GraphConfig {
   useConfigLogRevset: boolean;
   revset: string;
   limit: number;
+
+  viewLayout: "floating" | "compact";
 }
 
 /** Extension configuration. */
@@ -32,6 +34,8 @@ export function getGraphConfig(scope?: vscode.Uri): GraphConfig {
     useConfigLogRevset: config.get<boolean>("useConfigLogRevset", false),
     revset: config.get<string>("revset", "::"),
     limit: config.get<number>("limit", 50),
+
+    viewLayout: config.get<"floating" | "compact">("viewLayout", "floating"),
   };
 }
 

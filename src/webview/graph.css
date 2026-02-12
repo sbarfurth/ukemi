@@ -98,8 +98,102 @@ body {
   justify-content: center;
   margin-left: var(--curve-offset, 0px);
   padding-left: 12px;
-  gap: 4px;
 }
+
+#nodes.compact .text-content {
+  display: grid;
+  grid-template-columns: min-content 1fr;
+  column-gap: 0px;
+  align-items: center;
+  padding-left: 0;
+  min-height: 20px;
+}
+
+#nodes.compact .change-node {
+  /* Tighter padding */
+  padding: 2px 4px;
+}
+
+/* Column 1: IDs */
+.id-column {
+  display: flex;
+  flex-direction: column;
+  /* Right align IDs */
+  align-items: flex-end;
+  justify-content: center;
+  flex-shrink: 0;
+  padding-left: calc(var(--curve-offset, 0px) + 12px);
+  padding-right: 8px;
+  border-right: 1px solid var(--vscode-widget-border);
+}
+
+.id-column .change-id,
+.id-column .commit-id {
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+/* Column 2: Info */
+.info-column {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  overflow: hidden;
+}
+
+#nodes.compact .info-column {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  min-width: 0; /* Crucial for flex child truncation */
+}
+
+#nodes.compact .info-column .commit-message {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#nodes.compact .info-column .bookmarks {
+  /* Allow shrinking */
+  flex-shrink: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Don't take up too much space */
+  max-width: 40%;
+  display: flex;
+  gap: 4px;
+  min-width: 0; /* Crucial for flex child truncation */
+}
+
+#nodes.compact .info-column .bookmarks .bookmark-badge {
+  flex-shrink: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+#nodes.compact .info-column .timestamp {
+  font-size: 0.8em;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+#nodes.compact .info-column .author-email {
+  font-size: 0.8em;
+  opacity: 0.7;
+  /* Hidden by default in compact */
+  display: none;
+}
+
+.change-node.selected .info-column .author-email {
+  display: inline;
+}
+
 
 .commit-message {
   line-height: 1.2;
@@ -141,15 +235,16 @@ body {
 
 .bookmark-badge {
   background-color: var(--vscode-badge-background);
-  color: var(--vscode-badge-foreground);
-  border-radius: 2px;
-  padding: 1px 4px;
-  font-size: 0.9em;
-  margin-left: 2px;
+  color: var(--vscode-button-foreground);
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-size: 0.8em;
+  font-weight: bold;
 }
 
 .separator {
   opacity: 0.5;
+  margin: 0 4px;
 }
 
 /* Edit button styling */

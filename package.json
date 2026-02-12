@@ -504,6 +504,16 @@
           "description": "Path to the jj executable. If not set, your PATH and common locations will be searched for a jj executable.",
           "scope": "resource"
         },
+        "ukemi.graph.viewLayout": {
+          "type": "string",
+          "enum": [
+            "floating",
+            "compact"
+          ],
+          "default": "floating",
+          "description": "Layout style for the graph rows. 'floating' allows wrapping, 'compact' forces a single line.",
+          "scope": "resource"
+        },
         "ukemi.graph.showCommitId": {
           "type": "boolean",
           "default": true,
@@ -513,7 +523,7 @@
         "ukemi.graph.showAuthor": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Whether to show the author in the graph.",
+          "markdownDescription": "Whether to show the author in the graph (Floating view only).",
           "scope": "resource"
         },
         "ukemi.graph.showBookmarks": {
