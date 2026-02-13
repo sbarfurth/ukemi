@@ -12,6 +12,8 @@ import * as crypto from "crypto";
 import which from "which";
 import { getConfig } from "./config";
 import { getLogger } from "./logger";
+import { GitHubRepository } from "./github";
+import { CommentControllerManager } from "./commentController";
 
 async function getJJVersion(jjPath: string): Promise<string> {
   try {
@@ -509,6 +511,7 @@ class RepositorySourceControlManager {
   workingCopyResourceGroup: vscode.SourceControlResourceGroup;
   parentResourceGroups: vscode.SourceControlResourceGroup[] = [];
   repository: JJRepository;
+  commentControllerManager: CommentControllerManager | undefined;
   checkForUpdatesPromise: Promise<void> | undefined;
 
   private _onDidUpdate = new vscode.EventEmitter<void>();
@@ -535,6 +538,14 @@ class RepositorySourceControlManager {
       jjVersion,
       jjConfigArgs,
     );
+
+    const config = getConfig(vscode.Uri.file(repositoryRoot));
+    const ghPath = config.ghPath || "gh";
+    this.commentControllerManager = new CommentControllerManager(
+      this.repository,
+      new GitHubRepository(repositoryRoot, ghPath),
+    );
+    this.subscriptions.push(this.commentControllerManager);
 
     this.sourceControl = vscode.scm.createSourceControl(
       "jj",
@@ -587,9 +598,9 @@ class RepositorySourceControlManager {
     );
   }
 
-  async checkForUpdates() {
+  async checkForUpdates(force = false) {
     if (!this.checkForUpdatesPromise) {
-      this.checkForUpdatesPromise = this.checkForUpdatesUnsafe();
+      this.checkForUpdatesPromise = this.checkForUpdatesUnsafe(force);
       try {
         await this.checkForUpdatesPromise;
       } finally {
@@ -603,14 +614,23 @@ class RepositorySourceControlManager {
   /**
    * This should never be called concurrently.
    */
-  async checkForUpdatesUnsafe() {
+  async checkForUpdatesUnsafe(force = false) {
     const latestOperationId = await this.repository.getLatestOperationId();
-    if (this.operationId !== latestOperationId) {
+    if (this.operationId !== latestOperationId || force) {
       this.operationId = latestOperationId;
       const status = await this.repository.status();
 
       await this.updateState(status);
       this.render();
+
+      if (this.commentControllerManager) {
+        const activeEditor = vscode.window.activeTextEditor;
+        const uri = (activeEditor && !path.relative(this.repositoryRoot, activeEditor.document.uri.fsPath).startsWith(".."))
+          ? activeEditor.document.uri
+          : undefined;
+        
+        void this.commentControllerManager.refreshComments(uri, force);
+      }
 
       this._onDidUpdate.fire(undefined);
     }
@@ -934,6 +954,26 @@ export class JJRepository {
       .split("\n");
   }
 
+  async getRemotes(): Promise<Map<string, string>> {
+    const output = (
+      await handleJJCommand(
+        this.spawnJJ(["git", "remote", "list"], {
+          timeout: 5000,
+          cwd: this.repositoryRoot,
+        }),
+      )
+    ).toString();
+
+    const remotes = new Map<string, string>();
+    for (const line of output.split("\n").filter(Boolean)) {
+      const parts = line.split(/\s+/);
+      if (parts.length >= 2) {
+        remotes.set(parts[0], parts[1]);
+      }
+    }
+    return remotes;
+  }
+
   async show(rev: string) {
     const results = await this.showAll([rev]);
     if (results.length > 1) {
@@ -994,6 +1034,15 @@ export class JJRepository {
         template: 'bookmarks.map(|b| b.name()).join(",")',
         setter: (value, show) => {
           show.change.bookmarks = value
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+        },
+      },
+      {
+        template: 'remote_bookmarks.map(|b| b.name()).join(",")',
+        setter: (value, show) => {
+          show.change.remoteBookmarks = value
             .split(",")
             .map((s) => s.trim())
             .filter(Boolean);
@@ -1077,6 +1126,7 @@ export class JJRepository {
     return revResults.map((revResult) => {
       const fields = revResult.split(fieldSeparator);
       if (fields.length > templateFields.length) {
+        getLogger().error(`Separator found in a field value. Fields: ${JSON.stringify(fields)}. Raw result: ${revResult}`);
         throw new Error(
           "Separator found in a field value. This is not supported.",
         );
@@ -1095,6 +1145,7 @@ export class JJRepository {
           authoredDate: "",
           parentChangeIds: [],
           bookmarks: [],
+          remoteBookmarks: [],
           isEmpty: false,
           isConflict: false,
           isImmutable: false,
@@ -2022,6 +2073,7 @@ export interface Change {
   changeId: string;
   commitId: string;
   bookmarks: string[];
+  remoteBookmarks: string[];
   description: string;
   isEmpty: boolean;
   isConflict: boolean;
@@ -2077,6 +2129,7 @@ async function parseJJStatus(
     isConflict: false,
     isImmutable: false,
     bookmarks: [],
+    remoteBookmarks: [],
   };
   const parentCommits: Change[] = [];
 
@@ -2203,6 +2256,7 @@ async function parseJJStatus(
         bookmarks: bookmarks
           ? (await stripAnsiCodes(bookmarks)).split(/\s+/)
           : [],
+        remoteBookmarks: [],
         description: cleanedDescription,
         isEmpty,
         isConflict,
