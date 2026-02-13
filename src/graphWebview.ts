@@ -180,7 +180,7 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
 
     const changes = parseJJLog(output);
 
-    const status = await this.repository.getStatus(true);
+    const status = await this.repository.getStatus({ useCache: true });
     const workingCopyId = status.workingCopy.changeId;
 
     this.selectedNodes.clear();
@@ -351,5 +351,3 @@ export function parseJJLog(output: string): ChangeNode[] {
   }
   return changeNodes;
 }
-
-

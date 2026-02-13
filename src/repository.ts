@@ -12,8 +12,9 @@ import * as crypto from "crypto";
 import which from "which";
 import { getConfig } from "./config";
 import { getLogger } from "./logger";
+import { SemVer } from "./semver";
 
-async function getJJVersion(jjPath: string): Promise<string> {
+async function getJJVersion(jjPath: string): Promise<SemVer> {
   try {
     const version = (
       await handleCommand(
@@ -26,12 +27,12 @@ async function getJJVersion(jjPath: string): Promise<string> {
       .trim();
 
     if (version.startsWith("jj")) {
-      return version;
+      return SemVer.parse(version);
     }
   } catch {
     // Assume the version
   }
-  return "jj 0.28.0";
+  return SemVer.default();
 }
 
 export let extensionDir = "";
@@ -92,20 +93,23 @@ export function initExtensionDir(extensionUri: vscode.Uri) {
 
 async function getConfigArgs(
   extensionDir: string,
-  jjVersion: string,
+  jjVersion: SemVer,
 ): Promise<string[]> {
   const configPath = path.join(extensionDir, "config.toml");
 
   // Determine the config option and value based on jj version
-  const configOption =
-    jjVersion >= "jj 0.25.0" ? "--config-file" : "--config-toml";
+  const configOption = jjVersion.isAtLeast(SemVer.parse("0.25.0"))
+    ? "--config-file"
+    : "--config-toml";
 
   if (configOption === "--config-toml") {
     try {
       const configValue = await fs.readFile(configPath, "utf8");
       return [configOption, configValue];
     } catch (e) {
-      getLogger().error(`Failed to read config file at ${configPath}: ${String(e)}`);
+      getLogger().error(
+        `Failed to read config file at ${configPath}: ${String(e)}`,
+      );
       throw e;
     }
   } else {
@@ -260,7 +264,7 @@ export class WorkspaceSourceControlManager {
         string,
         {
           jjPath: Awaited<ReturnType<typeof getJJPath>>;
-          jjVersion: string;
+          jjVersion: SemVer;
           jjConfigArgs: string[];
           repoRoot: string;
         }
@@ -299,7 +303,7 @@ export class WorkspaceSourceControlManager {
       string,
       {
         jjPath: Awaited<ReturnType<typeof getJJPath>>;
-        jjVersion: string;
+        jjVersion: SemVer;
         jjConfigArgs: string[];
         repoRoot: string;
       }
@@ -352,7 +356,7 @@ export class WorkspaceSourceControlManager {
         isAnyRepoChanged = true;
         getLogger().info(`Detected new jj repo in workspace: ${key}`);
       } else if (
-        oldValue.jjVersion !== value.jjVersion ||
+        !oldValue.jjVersion.equals(value.jjVersion) ||
         oldValue.jjPath.filepath !== value.jjPath.filepath ||
         oldValue.jjConfigArgs.join(" ") !== value.jjConfigArgs.join(" ") ||
         oldValue.repoRoot !== value.repoRoot
@@ -378,7 +382,7 @@ export class WorkspaceSourceControlManager {
         { repoRoot, jjPath, jjVersion, jjConfigArgs },
       ] of newRepoInfos.entries()) {
         getLogger().info(
-          `Initializing ukemi in workspace ${workspaceFolder}. Using ${jjVersion} at ${jjPath.filepath} (${jjPath.source}).`,
+          `Initializing ukemi in workspace ${workspaceFolder}. Using ${jjVersion.toString()} at ${jjPath.filepath} (${jjPath.source}).`,
         );
         const repoSCM = new RepositorySourceControlManager(
           repoRoot,
@@ -526,7 +530,7 @@ class RepositorySourceControlManager {
     private decorationProvider: JJDecorationProvider,
     private fileSystemProvider: JJFileSystemProvider,
     jjPath: string,
-    jjVersion: string,
+    jjVersion: SemVer,
     jjConfigArgs: string[],
   ) {
     this.repository = new JJRepository(
@@ -604,10 +608,12 @@ class RepositorySourceControlManager {
    * This should never be called concurrently.
    */
   async checkForUpdatesUnsafe() {
-    const latestOperationId = await this.repository.getLatestOperationId();
+    const latestOperationId = await this.repository.getLatestOperationId({
+      noIntegrate: true,
+    });
     if (this.operationId !== latestOperationId) {
       this.operationId = latestOperationId;
-      const status = await this.repository.status();
+      const status = await this.repository.status({ noIntegrate: true });
 
       await this.updateState(status);
       this.render();
@@ -632,7 +638,9 @@ class RepositorySourceControlManager {
     const isKnownStoreBackend = await this.repository.isKnownStoreBackend();
     if (isKnownStoreBackend) {
       newTrackedFiles = new Set<string>();
-      const trackedFilesList = await this.repository.fileList();
+      const trackedFilesList = await this.repository.fileList({
+        noIntegrate: true,
+      });
       for (const t of trackedFilesList) {
         const pathParts = t.split(path.sep);
         let currentPath = this.repositoryRoot + path.sep;
@@ -646,7 +654,9 @@ class RepositorySourceControlManager {
 
     const parentShowPromises = status.parentChanges.map(
       async (parentChange) => {
-        const showResult = await this.repository.show(parentChange.changeId);
+        const showResult = await this.repository.show(parentChange.changeId, {
+          noIntegrate: true,
+        });
         return { changeId: parentChange.changeId, showResult };
       },
     );
@@ -819,7 +829,7 @@ export class JJRepository {
   constructor(
     public repositoryRoot: string,
     private jjPath: string,
-    private jjVersion: string,
+    private jjVersion: SemVer,
     private jjConfigArgs: string[],
   ) {}
 
@@ -834,22 +844,35 @@ export class JJRepository {
     if (this.isKnownStoreBackendCache !== undefined) {
       return this.isKnownStoreBackendCache;
     }
-    const root = (
-      await handleJJCommand(
-        this.spawnJJ(["root"], {
-          timeout: 5000,
-          cwd: this.repositoryRoot,
-        }),
+    let storeType: string;
+    if (this.jjVersion.isAtLeast(SemVer.parse("0.42.0"))) {
+      storeType = (
+        await handleJJCommand(
+          this.spawnJJ(["util", "backend", "name"], {
+            timeout: 5000,
+            cwd: this.repositoryRoot,
+          }),
+        )
+      ).toString();
+    } else {
+      const root = (
+        await handleJJCommand(
+          this.spawnJJ(["root"], {
+            timeout: 5000,
+            cwd: this.repositoryRoot,
+          }),
+        )
       )
-    )
-      .toString()
-      .trim();
-    const storeTypeRaw = await fs.readFile(
-      path.join(root, ".jj/repo/store/type"),
-      "utf8",
+        .toString()
+        .trim();
+      storeType = await fs.readFile(
+        path.join(root, ".jj/repo/store/type"),
+        "utf8",
+      );
+    }
+    this.isKnownStoreBackendCache = ["git", "simple"].includes(
+      storeType.trim().toLowerCase(),
     );
-    const storeType = storeTypeRaw.trim().toLowerCase();
-    this.isKnownStoreBackendCache = ["git", "simple"].includes(storeType);
     return this.isKnownStoreBackendCache;
   }
 
@@ -857,35 +880,63 @@ export class JJRepository {
    * Note: this command may itself snapshot the working copy and add an operation to the log, in which case it will
    * return the new operation id.
    */
-  async getLatestOperationId() {
+  async getLatestOperationId(options: { noIntegrate?: boolean } = {}) {
+    const args = [
+      "operation",
+      "log",
+      "--limit",
+      "1",
+      "-T",
+      "self.id()",
+      "--no-graph",
+    ];
+    if (
+      options.noIntegrate &&
+      this.jjVersion.isAtLeast(SemVer.parse("0.41.0"))
+    ) {
+      args.unshift("--no-integrate-operation");
+    }
     return (
       await handleJJCommand(
-        this.spawnJJ(
-          ["operation", "log", "--limit", "1", "-T", "self.id()", "--no-graph"],
-          {
-            cwd: this.repositoryRoot,
-          },
-        ),
+        this.spawnJJ(args, {
+          cwd: this.repositoryRoot,
+        }),
       )
     )
       .toString()
       .trim();
   }
 
-  async getStatus(useCache = false): Promise<RepositoryStatus> {
-    if (useCache && this.statusCache) {
+  async getStatus(
+    options: {
+      useCache?: boolean;
+      noIntegrate?: boolean;
+    } = {},
+  ): Promise<RepositoryStatus> {
+    if (options.useCache && this.statusCache) {
       return this.statusCache;
+    }
+
+    const logArgs = [
+      "log",
+      "-r",
+      "immutable_heads()",
+      "-T",
+      "change_id.short(8)",
+    ];
+    if (
+      options.noIntegrate &&
+      this.jjVersion.isAtLeast(SemVer.parse("0.41.0"))
+    ) {
+      logArgs.unshift("--no-integrate-operation");
     }
 
     const immutableOutput = (
       await handleJJCommand(
-        this.spawnJJ(
-          ["log", "-r", "immutable_heads()", "-T", "change_id.short(8)"],
-          {
-            timeout: 5000,
-            cwd: this.repositoryRoot,
-          },
-        ),
+        this.spawnJJ(logArgs, {
+          timeout: 5000,
+          cwd: this.repositoryRoot,
+        }),
       )
     ).toString();
     const changeIdLinePattern = /^.*([k-z]{8})$/;
@@ -897,9 +948,17 @@ export class JJRepository {
       }
     }
 
+    const statusArgs = ["status", "--color=always"];
+    if (
+      options.noIntegrate &&
+      this.jjVersion.isAtLeast(SemVer.parse("0.41.0"))
+    ) {
+      statusArgs.unshift("--no-integrate-operation");
+    }
+
     const statusOutput = (
       await handleJJCommand(
-        this.spawnJJ(["status", "--color=always"], {
+        this.spawnJJ(statusArgs, {
           timeout: 5000,
           cwd: this.repositoryRoot,
         }),
@@ -915,15 +974,27 @@ export class JJRepository {
     return status;
   }
 
-  async status(useCache = false): Promise<RepositoryStatus> {
-    const status = await this.getStatus(useCache);
+  async status(
+    options: {
+      useCache?: boolean;
+      noIntegrate?: boolean;
+    } = {},
+  ): Promise<RepositoryStatus> {
+    const status = await this.getStatus(options);
     return status;
   }
 
-  async fileList() {
+  async fileList(options: { noIntegrate?: boolean } = {}) {
+    const args = ["file", "list"];
+    if (
+      options.noIntegrate &&
+      this.jjVersion.isAtLeast(SemVer.parse("0.41.0"))
+    ) {
+      args.unshift("--no-integrate-operation");
+    }
     return (
       await handleJJCommand(
-        this.spawnJJ(["file", "list"], {
+        this.spawnJJ(args, {
           timeout: 5000,
           cwd: this.repositoryRoot,
         }),
@@ -934,8 +1005,8 @@ export class JJRepository {
       .split("\n");
   }
 
-  async show(rev: string) {
-    const results = await this.showAll([rev]);
+  async show(rev: string, options: { noIntegrate?: boolean } = {}) {
+    const results = await this.showAll([rev], options);
     if (results.length > 1) {
       throw new Error("Multiple results found for the given revision.");
     }
@@ -945,11 +1016,16 @@ export class JJRepository {
     return results[0];
   }
 
-  async showAll(revsets: string[]): Promise<Show[]> {
-    const revSeparator = "ukemiඞ\n";
-    const fieldSeparator = "ඞukemi";
+  async showAll(
+    revsets: string[],
+    options: { noIntegrate?: boolean } = {},
+  ): Promise<Show[]> {
+    const revSeparator = "__ඞඞ__\n";
+    const fieldSeparator = "__ඞ__";
     const summarySeparator = "@?!"; // characters that are illegal in filepaths
-    const isConflictDetectionSupported = this.jjVersion >= "jj 0.26.0";
+    const isConflictDetectionSupported = this.jjVersion.isAtLeast(
+      SemVer.parse("0.26.0"),
+    );
     const templateFields: ShowTemplateField[] = [
       {
         template: "change_id",
@@ -1048,22 +1124,27 @@ export class JJRepository {
         .map((field) => field.template)
         .join(` ++ "${fieldSeparator}" ++ `) + ` ++ "${revSeparator}"`;
 
+    const logArgs = [
+      "log",
+      "-T",
+      template,
+      "--no-graph",
+      "--no-pager",
+      ...revsets.flatMap((revset) => ["-r", revset]),
+    ];
+    if (
+      options.noIntegrate &&
+      this.jjVersion.isAtLeast(SemVer.parse("0.41.0"))
+    ) {
+      logArgs.unshift("--no-integrate-operation");
+    }
+
     const output = (
       await handleJJCommand(
-        this.spawnJJ(
-          [
-            "log",
-            "-T",
-            template,
-            "--no-graph",
-            "--no-pager",
-            ...revsets.flatMap((revset) => ["-r", revset]),
-          ],
-          {
-            timeout: 5000,
-            cwd: this.repositoryRoot,
-          },
-        ),
+        this.spawnJJ(logArgs, {
+          timeout: 5000,
+          cwd: this.repositoryRoot,
+        }),
       )
     ).toString();
 
@@ -1131,7 +1212,7 @@ export class JJRepository {
                 if (status === "renamed" || status === "copied") {
                   ret.fileStatuses.push({
                     type: status === "renamed" ? "R" : "C",
-                    file: path.basename(targetPath),
+                    file: targetPath,
                     path: path.join(this.repositoryRoot, targetPath),
                     renamedFrom: sourcePath,
                   });
@@ -1143,7 +1224,7 @@ export class JJRepository {
                         : status === "removed"
                           ? "D"
                           : "M",
-                    file: path.basename(targetPath),
+                    file: targetPath,
                     path: path.join(this.repositoryRoot, targetPath),
                   });
                 }
@@ -1725,12 +1806,12 @@ export class JJRepository {
   }
 
   async operationLog(): Promise<Operation[]> {
-    const operationSeparator = "ඞඞඞ\n";
-    const fieldSeparator = "ukemiඞ";
+    const operationSeparator = "__ඞඞ__\n";
+    const fieldSeparator = "__ඞ__";
     const templateFields = [
       "self.id()",
       "self.description()",
-      "self.tags()",
+      "self.attributes()",
       "self.time().start()",
       "self.user()",
       "self.snapshot()",
@@ -1766,11 +1847,15 @@ export class JJRepository {
     for (const line of lines) {
       const results = line.split(fieldSeparator);
       if (results.length > templateFields.length) {
-        throw new Error(
-          "Separator found in a field value. This is not supported.",
+        console.warn(
+          "Separator found in a field value. This is not supported. Operation will be ignored.",
         );
+        continue;
       } else if (results.length < templateFields.length) {
-        throw new Error("Missing fields in the output.");
+        console.warn(
+          "Missing fields in the output. Operation will be ignored.",
+        );
+        continue;
       }
       const op: Operation = {
         id: "",
@@ -1791,7 +1876,7 @@ export class JJRepository {
           case "self.description()":
             op.description = value;
             break;
-          case "self.tags()":
+          case "self.attributes()":
             op.tags = value;
             break;
           case "self.time().start()":
