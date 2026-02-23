@@ -1681,60 +1681,68 @@ export async function activate(context: vscode.ExtensionContext) {
 
   void scheduleNextPoll(); // Start the first poll.
 
-  let ghPollTimeoutId: NodeJS.Timeout | undefined;
-  const scheduleNextGHCommentPoll = async () => {
-    if (isPollingCanceled) {
-      return;
-    }
+  let ghPollTimer: NodeJS.Timeout | undefined;
 
+  const performGHCommentsPoll = async () => {
+    if (isPollingCanceled) { return; }
     try {
       const config = getConfig();
-      const intervalMinutes = config.githubPRPollInterval;
+      if (config.githubPRPollInterval <= 0) { return; }
 
-      if (intervalMinutes > 0) {
-        getLogger().info(
-          `[GH Comments] Background refresh triggered (Interval: ${intervalMinutes}m).`,
-        );
-        await Promise.all(
-          workspaceSCM.repoSCMs
-            .filter((repoSCM) => !!repoSCM.commentControllerManager)
-            .map((repoSCM) =>
-              repoSCM.commentControllerManager!.refreshComments(
-                undefined,
-                true,
-              ),
-            ),
-        );
-
-        ghPollTimeoutId = setTimeout(
-          () => void scheduleNextGHCommentPoll(),
-          intervalMinutes * 60_000,
-        );
-      } else {
-        // Check again in 1 minute if polling was disabled, in case it gets re-enabled
-        ghPollTimeoutId = setTimeout(
-          () => void scheduleNextGHCommentPoll(),
-          60_000,
-        );
-      }
+      getLogger().info(`[GH Comments] Background refresh triggered.`);
+      await Promise.all(
+        workspaceSCM.repoSCMs
+          .filter((repoSCM) => !!repoSCM.commentControllerManager)
+          .map((repoSCM) =>
+            repoSCM.commentControllerManager!.refreshComments(undefined, true)
+          )
+      );
     } catch (err) {
-      logger.error(
-        `Error during GitHub comment background poll: ${String(err)}`,
-      );
-      ghPollTimeoutId = setTimeout(
-        () => void scheduleNextGHCommentPoll(),
-        60_000,
-      );
+      logger.error(`Error during GitHub comment background poll: ${String(err)}`);
     }
   };
 
-  void scheduleNextGHCommentPoll();
+  const stopGHPolling = () => {
+    if (ghPollTimer) {
+      clearInterval(ghPollTimer);
+      ghPollTimer = undefined;
+    }
+  };
+
+  const startGHPolling = () => {
+    stopGHPolling();
+    if (isPollingCanceled) { return; }
+
+    const config = getConfig();
+    const intervalMinutes = config.githubPRPollInterval;
+    if (intervalMinutes > 0) {
+      getLogger().info(`[GH Comments] Starting background polling every ${intervalMinutes} minutes.`);
+      // Run immediately
+      void performGHCommentsPoll();
+      ghPollTimer = setInterval(() => {
+        void performGHCommentsPoll();
+      }, intervalMinutes * 60_000);
+    } else {
+      getLogger().info(`[GH Comments] Background polling disabled.`);
+    }
+  };
+
+  // Start initial polling
+  startGHPolling();
+
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("ukemi.githubPRPollInterval")) {
+        startGHPolling();
+      }
+    })
+  );
 
   context.subscriptions.push(
     new vscode.Disposable(() => {
       isPollingCanceled = true;
       clearTimeout(pollTimeoutId);
-      clearTimeout(ghPollTimeoutId);
+      stopGHPolling();
     }),
   );
 }

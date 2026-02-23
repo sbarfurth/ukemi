@@ -170,8 +170,13 @@ export class GitHubRepository {
         args.push("--repo", repoSlug);
       }
       const output = await this.spawnGH(args, owner);
-      const prs = JSON.parse(output.toString()) as GHPR[];
-      return prs.length > 0 ? prs[0] : undefined;
+      try {
+        const prs = JSON.parse(output.toString()) as GHPR[];
+        return prs.length > 0 ? prs[0] : undefined;
+      } catch (e) {
+        getLogger().error(`Failed to parse PR list output: ${String(e)}`);
+        return undefined;
+      }
     } catch (e) {
       getLogger().error(`Failed to find PR for branch ${branchName}: ${String(e)}`);
       return undefined;
@@ -184,7 +189,12 @@ export class GitHubRepository {
       // Use gh api to fetch review comments directly
       const args = ["api", `repos/${repoSlug}/pulls/${prNumber}/comments`];
       const output = await this.spawnGH(args, owner);
-      return JSON.parse(output.toString()) as GHComment[];
+      try {
+        return JSON.parse(output.toString()) as GHComment[];
+      } catch (e) {
+        getLogger().error(`Failed to parse PR comments output: ${String(e)}`);
+        return [];
+      }
     } catch (e) {
       getLogger().error(`Failed to fetch comments for PR #${prNumber}: ${String(e)}`);
       return [];
@@ -221,13 +231,18 @@ export class GitHubRepository {
         "-f", `repo=${repo}`,
         "-F", `number=${prNumber}`
       ], owner);
-      const response = JSON.parse(output.toString()) as GraphQLResponse;
-      const threads = response.data.repository.pullRequest.reviewThreads.nodes;
-      return threads.map((t) => ({
-        id: t.id,
-        isResolved: t.isResolved,
-        rootCommentDatabaseId: t.comments.nodes[0]?.databaseId
-      })).filter((t): t is GHThreadInfo => t.rootCommentDatabaseId !== undefined);
+      try {
+        const response = JSON.parse(output.toString()) as GraphQLResponse;
+        const threads = response.data.repository.pullRequest.reviewThreads.nodes;
+        return threads.map((t) => ({
+          id: t.id,
+          isResolved: t.isResolved,
+          rootCommentDatabaseId: t.comments.nodes[0]?.databaseId
+        })).filter((t): t is GHThreadInfo => t.rootCommentDatabaseId !== undefined);
+      } catch (e) {
+        getLogger().error(`Failed to parse PR threads output: ${String(e)}`);
+        return [];
+      }
     } catch (e) {
       getLogger().error(`Failed to fetch threads for PR #${prNumber}: ${String(e)}`);
       return [];
@@ -244,7 +259,12 @@ export class GitHubRepository {
         "-F", `in_reply_to=${inReplyTo}`
       ];
       const output = await this.spawnGH(args, owner);
-      return JSON.parse(output.toString()) as GHComment;
+      try {
+        return JSON.parse(output.toString()) as GHComment;
+      } catch (e) {
+        getLogger().error(`Failed to parse reply output: ${String(e)}`);
+        return undefined;
+      }
     } catch (e) {
       getLogger().error(`Failed to post reply to comment ${inReplyTo}: ${String(e)}`);
       return undefined;

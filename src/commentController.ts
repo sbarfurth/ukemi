@@ -244,13 +244,14 @@ export class CommentControllerManager {
     this.githubRepository.invalidateAuthCache();
   }
 
-  private displayComments(uri: vscode.Uri, fileComments: GHComment[], threads: GHThreadInfo[], prNumber: number, repoSlug: string, clearExisting = true) {
-    if (clearExisting) {
-      this.clearComments(uri);
-    }
-
+  private displayComments(uri: vscode.Uri, fileComments: GHComment[], threads: GHThreadInfo[], prNumber: number, repoSlug: string, _clearExisting = true) {
     if (fileComments.length === 0) {
-      return;
+      // If no comments, but we have threads for this URI, we might need to dispose them
+      // But only if clearExisting was true, which it is for the full refresh.
+      // If clearExisting is false (incremental), we should be careful.
+      // For now, if fileComments is empty and we are in this function, it usually means we want to show nothing for this file 
+      // OR we are iterating over all files.
+      // implementation below handles disposal of stale threads.
     }
 
     // Group comments by line to create threads (simplified grouping)
@@ -271,6 +272,7 @@ export class CommentControllerManager {
 
     const uriString = uri.toString();
     const currentFileThreads = this.threads.get(uriString) || [];
+    const usedThreads = new Set<vscode.CommentThread>();
 
     // Create or update threads
     for (const [line, lineComments] of threadsByLine) {
@@ -281,11 +283,29 @@ export class CommentControllerManager {
       const rootComment = lineComments[0];
       const threadInfo = threads.find(t => t.rootCommentDatabaseId === rootComment.id);
 
-      const thread = this.commentController.createCommentThread(
-        uri,
-        new vscode.Range(line, 0, line, 0),
-        lineComments.map(c => this.mapToVSCodeComment(c))
-      );
+      // Try to find an existing thread for this line and root comment
+      // We use the root comment ID to uniquely identify the conversation
+      let thread = currentFileThreads.find(t => {
+        const meta = this.threadMetadata.get(t);
+        return meta?.rootCommentId === rootComment.id && t.range && t.range.start.line === line;
+      });
+
+      const newComments = lineComments.map(c => this.mapToVSCodeComment(c));
+
+      if (thread) {
+        // Update existing thread
+        thread.comments = newComments;
+        usedThreads.add(thread);
+      } else {
+        // Create new thread
+        thread = this.commentController.createCommentThread(
+          uri,
+          new vscode.Range(line, 0, line, 0),
+          newComments
+        );
+        currentFileThreads.push(thread);
+        usedThreads.add(thread);
+      }
 
       if (threadInfo) {
         this.threadMetadata.set(thread, {
@@ -296,18 +316,34 @@ export class CommentControllerManager {
         });
       }
 
-      thread.collapsibleState = threadInfo?.isResolved 
+      // Update state
+      const isResolved = threadInfo?.isResolved ?? false;
+      thread.collapsibleState = isResolved 
         ? vscode.CommentThreadCollapsibleState.Collapsed 
         : vscode.CommentThreadCollapsibleState.Expanded;
-      thread.state = threadInfo?.isResolved 
+      thread.state = isResolved
         ? vscode.CommentThreadState.Resolved 
         : vscode.CommentThreadState.Unresolved;
-      thread.label = `PR Review${threadInfo?.isResolved ? " (Resolved)" : ""}`;
-      
-      currentFileThreads.push(thread);
+      thread.label = `PR Review${isResolved ? " (Resolved)" : ""}`;
     }
 
-    this.threads.set(uriString, currentFileThreads);
+    // Dispose of threads that are no longer present for this file
+    // active threads are in usedThreads
+    const keptThreads: vscode.CommentThread[] = [];
+    for (const thread of currentFileThreads) {
+      if (!usedThreads.has(thread)) {
+        this.threadMetadata.delete(thread);
+        thread.dispose();
+      } else {
+        keptThreads.push(thread);
+      }
+    }
+
+    if (keptThreads.length > 0) {
+      this.threads.set(uriString, keptThreads);
+    } else {
+      this.threads.delete(uriString);
+    }
   }
 
   private mapToVSCodeComment(ghComment: GHComment): vscode.Comment {
