@@ -245,16 +245,9 @@ export class CommentControllerManager {
   }
 
   private displayComments(uri: vscode.Uri, fileComments: GHComment[], threads: GHThreadInfo[], prNumber: number, repoSlug: string, _clearExisting = true) {
-    if (fileComments.length === 0) {
-      // If no comments, but we have threads for this URI, we might need to dispose them
-      // But only if clearExisting was true, which it is for the full refresh.
-      // If clearExisting is false (incremental), we should be careful.
-      // For now, if fileComments is empty and we are in this function, it usually means we want to show nothing for this file 
-      // OR we are iterating over all files.
-      // implementation below handles disposal of stale threads.
-    }
-
-    // Group comments by line to create threads (simplified grouping)
+    // We group comments by line number because the GitHub REST API returns a flat list of comments.
+    // While GraphQL provides thread threads, we currently rely on the REST data for comment content.
+    // Grouping by line allows us to reconstruct the conversation flow for VS Code's line-based comment model.
     const threadsByLine = new Map<number, GHComment[]>();
     for (const comment of fileComments) {
       if (comment.line === null) {
