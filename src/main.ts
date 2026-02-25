@@ -104,6 +104,11 @@ export async function activate(context: vscode.ExtensionContext) {
         await checkReposFunction(affectedFolders);
       }
     }
+    if (e.affectsConfiguration("ukemi")) {
+      logger.info("Ukemi configuration changed");
+      // Trigger a poll with force=true to re-verify auth and refresh comments
+      void poll(true);
+    }
   });
 
   let isInitialized = false;
@@ -333,6 +338,11 @@ export async function activate(context: vscode.ExtensionContext) {
           (selection) => selection.active.line,
         );
         await setDecorations(editor, activeLines);
+
+        const repositorySCM = workspaceSCM.getRepositorySourceControlManagerFromUri(uri);
+        if (repositorySCM?.commentControllerManager) {
+          void repositorySCM.commentControllerManager.refreshComments(uri);
+        }
       }
     };
     context.subscriptions.push(
@@ -1429,8 +1439,7 @@ export async function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-      vscode.commands.registerCommand(
-        "jj.commit",
+      vscode.commands.registerCommand("jj.commit",
         showLoading(async (sourceControl: vscode.SourceControl) => {
           try {
             const repository =
@@ -1450,10 +1459,54 @@ export async function activate(context: vscode.ExtensionContext) {
       ),
     );
 
+    context.subscriptions.push(
+      vscode.commands.registerCommand("ukemi.refreshComments", async () => {
+        getLogger().info("[GH Comments] Manual refresh triggered from UI.");
+        await Promise.all(
+          workspaceSCM.repoSCMs
+            .filter((repoSCM) => !!repoSCM.commentControllerManager)
+            .map((repoSCM) =>
+              repoSCM.commentControllerManager!.refreshComments(
+                undefined,
+                true,
+              ),
+            ),
+        );
+      }),
+    );
+    
+        context.subscriptions.push(
+          vscode.commands.registerCommand(
+            "ukemi.replyAndResolve",
+     async (reply: vscode.CommentReply) => {
+        const thread = reply.thread;
+        const text = reply.text;
+        const repositorySCM = workspaceSCM.getRepositorySourceControlManagerFromUri(thread.uri);
+        if (repositorySCM?.commentControllerManager) {
+          await repositorySCM.commentControllerManager.handleReply(thread, text, true);
+        }
+      }),
+      vscode.commands.registerCommand("ukemi.replyOnly", async (reply: vscode.CommentReply) => {
+        const thread = reply.thread;
+        const text = reply.text;
+        const repositorySCM = workspaceSCM.getRepositorySourceControlManagerFromUri(thread.uri);
+        if (repositorySCM?.commentControllerManager) {
+          await repositorySCM.commentControllerManager.handleReply(thread, text, false);
+        }
+      }),
+      vscode.commands.registerCommand("ukemi.markDone", async (arg: vscode.CommentThread | vscode.CommentReply) => {
+        const thread = "thread" in arg ? arg.thread : arg;
+        const repositorySCM = workspaceSCM.getRepositorySourceControlManagerFromUri(thread.uri);
+        if (repositorySCM?.commentControllerManager) {
+          await repositorySCM.commentControllerManager.handleMarkDone(thread);
+        }
+      }),
+    );
+
     isInitialized = true;
   }
 
-  async function poll() {
+  async function poll(force = false) {
     const didUpdate = await workspaceSCM.refresh();
     if (didUpdate) {
       setSelectedRepo(getSelectedRepo());
@@ -1469,14 +1522,14 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // Snapshot changes
     await Promise.all(
-      workspaceSCM.repoSCMs.map((repoSCM) => repoSCM.checkForUpdates()),
+      workspaceSCM.repoSCMs.map((repoSCM) => repoSCM.checkForUpdates(force)),
     );
   }
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "jj.refresh",
-      showLoading(() => poll()),
+      showLoading(() => poll(true)),
     ),
   );
 
@@ -1628,10 +1681,68 @@ export async function activate(context: vscode.ExtensionContext) {
 
   void scheduleNextPoll(); // Start the first poll.
 
+  let ghPollTimer: NodeJS.Timeout | undefined;
+
+  const performGHCommentsPoll = async () => {
+    if (isPollingCanceled) { return; }
+    try {
+      const config = getConfig();
+      if (config.githubPRPollInterval <= 0) { return; }
+
+      getLogger().info(`[GH Comments] Background refresh triggered.`);
+      await Promise.all(
+        workspaceSCM.repoSCMs
+          .filter((repoSCM) => !!repoSCM.commentControllerManager)
+          .map((repoSCM) =>
+            repoSCM.commentControllerManager!.refreshComments(undefined, true)
+          )
+      );
+    } catch (err) {
+      logger.error(`Error during GitHub comment background poll: ${String(err)}`);
+    }
+  };
+
+  const stopGHPolling = () => {
+    if (ghPollTimer) {
+      clearInterval(ghPollTimer);
+      ghPollTimer = undefined;
+    }
+  };
+
+  const startGHPolling = () => {
+    stopGHPolling();
+    if (isPollingCanceled) { return; }
+
+    const config = getConfig();
+    const intervalMinutes = config.githubPRPollInterval;
+    if (intervalMinutes > 0) {
+      getLogger().info(`[GH Comments] Starting background polling every ${intervalMinutes} minutes.`);
+      // Run immediately
+      void performGHCommentsPoll();
+      ghPollTimer = setInterval(() => {
+        void performGHCommentsPoll();
+      }, intervalMinutes * 60_000);
+    } else {
+      getLogger().info(`[GH Comments] Background polling disabled.`);
+    }
+  };
+
+  // Start initial polling
+  startGHPolling();
+
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("ukemi.githubPRPollInterval")) {
+        startGHPolling();
+      }
+    })
+  );
+
   context.subscriptions.push(
     new vscode.Disposable(() => {
       isPollingCanceled = true;
       clearTimeout(pollTimeoutId);
+      stopGHPolling();
     }),
   );
 }

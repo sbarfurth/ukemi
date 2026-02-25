@@ -21,6 +21,12 @@ export interface Config {
   enableAnnotations: boolean;
   commandTimeout: number | null;
   jjPath: string;
+  githubToken: string;
+  githubTokens: Record<string, string>;
+  githubRemote: string;
+  githubPRSearchLimit: number;
+  githubPRPollInterval: number;
+  ghPath: string;
   graph: GraphConfig;
 }
 
@@ -45,6 +51,12 @@ export function getConfig(scope?: vscode.Uri): Config {
     enableAnnotations: config.get<boolean>("enableAnnotations", true),
     commandTimeout: config.get<number | null>("commandTimeout", null),
     jjPath: config.get<string>("jjPath", ""),
+    githubToken: config.get<string>("githubToken", ""),
+    githubTokens: config.get<Record<string, string>>("githubTokens", {}),
+    githubRemote: config.get<string>("githubRemote", "origin"),
+    githubPRSearchLimit: config.get<number>("githubPRSearchLimit", 10),
+    githubPRPollInterval: config.get<number>("githubPRPollInterval", 5),
+    ghPath: config.get<string>("ghPath", ""),
     graph: getGraphConfig(scope),
   };
 }
