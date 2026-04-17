@@ -222,9 +222,57 @@
         "command": "jj.commit",
         "title": "Commit changes",
         "category": "Jujutsu"
+      },
+      {
+        "command": "ukemi.refreshComments",
+        "title": "Refresh GitHub Comments",
+        "category": "Jujutsu",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "ukemi.replyAndResolve",
+        "title": "Reply & Resolve",
+        "category": "Jujutsu",
+        "icon": "$(check)"
+      },
+      {
+        "command": "ukemi.replyOnly",
+        "title": "Reply Only",
+        "category": "Jujutsu",
+        "icon": "$(reply)"
+      },
+      {
+        "command": "ukemi.markDone",
+        "title": "Mark Done",
+        "category": "Jujutsu",
+        "icon": "$(pass)"
       }
     ],
     "menus": {
+      "comments/commentThread/title": [
+        {
+          "command": "ukemi.markDone",
+          "group": "navigation",
+          "when": "commentController == ukemi-comments"
+        }
+      ],
+      "comments/commentThread/context": [
+        {
+          "command": "ukemi.replyAndResolve",
+          "group": "navigation@1",
+          "when": "commentController == ukemi-comments"
+        },
+        {
+          "command": "ukemi.markDone",
+          "group": "navigation@2",
+          "when": "commentController == ukemi-comments"
+        },
+        {
+          "command": "ukemi.replyOnly",
+          "group": "navigation@3",
+          "when": "commentController == ukemi-comments"
+        }
+      ],
       "editor/title": [
         {
           "command": "jj.squashSelectedRanges",
@@ -276,6 +324,11 @@
         {
           "command": "jj.newGraphWebview",
           "when": "view == jjGraphWebview && jjGraphView.nodesSelected",
+          "group": "navigation"
+        },
+        {
+          "command": "ukemi.refreshComments",
+          "when": "view == workbench.panel.comments",
           "group": "navigation"
         },
         {
@@ -503,6 +556,44 @@
           "default": "",
           "description": "Path to the jj executable. If not set, your PATH and common locations will be searched for a jj executable.",
           "scope": "resource"
+        },
+        "ukemi.githubToken": {
+          "type": "string",
+          "default": "",
+          "description": "GitHub Personal Access Token (PAT) for fetching PR comments. If not set, the gh CLI's default authentication will be used.",
+          "scope": "resource"
+        },
+        "ukemi.githubTokens": {
+          "type": "object",
+          "default": {},
+          "description": "A map of GitHub organization names to Personal Access Tokens (PATs). Useful for working across multiple organizations with different auth requirements. PAT tokens need read/write access to Pull requests and Contents.",
+          "scope": "resource"
+        },
+        "ukemi.ghPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the gh executable. If not set, your PATH will be searched for a gh executable.",
+          "scope": "resource"
+        },
+        "ukemi.githubRemote": {
+          "type": "string",
+          "default": "origin",
+          "description": "The git remote name to use for identifying the GitHub organization and repository.",
+          "scope": "resource"
+        },
+        "ukemi.githubPRSearchLimit": {
+          "type": "number",
+          "default": 10,
+          "description": "The maximum number of parent commits to search for a matching GitHub PR.",
+          "scope": "resource",
+          "minimum": 0
+        },
+        "ukemi.githubPRPollInterval": {
+          "type": "number",
+          "default": 5,
+          "description": "Interval in minutes for background polling of GitHub PR comments. Set to 0 to disable background polling.",
+          "scope": "resource",
+          "minimum": 0
         },
         "ukemi.graph.viewLayout": {
           "type": "string",

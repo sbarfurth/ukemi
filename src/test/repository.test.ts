@@ -44,6 +44,7 @@ suite("JJRepository", () => {
       assert.strictEqual(status.parentChanges.length, 1);
       assert.deepStrictEqual(status.parentChanges[0], {
         bookmarks: [],
+        remoteBookmarks: [],
         changeId: "zzzzzzzz",
         commitId: "00000000",
         description: "",
@@ -110,6 +111,7 @@ suite("JJRepository", () => {
           commitId: "0000000000000000000000000000000000000000",
           parentChangeIds: [],
           bookmarks: [],
+          remoteBookmarks: [],
           description: "",
           isConflict: false,
           isEmpty: true,
