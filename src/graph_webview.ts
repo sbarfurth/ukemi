@@ -1,8 +1,8 @@
-import * as vscode from "vscode";
-import * as fs from "fs";
-import type { JJRepository } from "./jj/repository";
-import path from "path";
-import { getGraphConfig } from "./config";
+import * as vscode from 'vscode';
+import * as fs from 'fs';
+import type { JJRepository } from './jj/repository';
+import path from 'path';
+import { getGraphConfig } from './config';
 
 type Message = {
   command: string;
@@ -47,7 +47,7 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
 
     // Register the webview provider
     context.subscriptions.push(
-      vscode.window.registerWebviewViewProvider("jjGraphWebview", this, {
+      vscode.window.registerWebviewViewProvider('jjGraphWebview', this, {
         webviewOptions: {
           retainContextWhenHidden: true,
         },
@@ -57,7 +57,7 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
     // Auto-refresh when relevant configuration changes
     context.subscriptions.push(
       vscode.workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration("ukemi.graph")) {
+        if (e.affectsConfiguration('ukemi.graph')) {
           void this.refresh();
         }
       }),
@@ -80,7 +80,7 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
     await new Promise<void>((resolve) => {
       const messageListener = webviewView.webview.onDidReceiveMessage(
         (message: Message) => {
-          if (message.command === "webviewReady") {
+          if (message.command === 'webviewReady') {
             messageListener.dispose();
             resolve();
           }
@@ -90,12 +90,12 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
 
     webviewView.webview.onDidReceiveMessage(async (message: Message) => {
       switch (message.command) {
-        case "editChange":
+        case 'editChange':
           try {
             await vscode.window.withProgress(
               {
                 location: vscode.ProgressLocation.Notification,
-                title: "Updating working directory...",
+                title: 'Updating working directory...',
               },
               async () => {
                 await this.repository.editRetryImmutable(message.changeId);
@@ -107,11 +107,11 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
             );
           }
           break;
-        case "selectChange":
+        case 'selectChange':
           this.selectedNodes = new Set(message.selectedNodes);
           vscode.commands.executeCommand(
-            "setContext",
-            "jjGraphView.nodesSelected",
+            'setContext',
+            'jjGraphView.nodesSelected',
             message.selectedNodes.length,
           );
           break;
@@ -185,7 +185,7 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
 
     this.selectedNodes.clear();
     this.panel.webview.postMessage({
-      command: "updateGraph",
+      command: 'updateGraph',
       changes: changes,
       workingCopyId,
       showAuthor,
@@ -199,38 +199,38 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
   private getWebviewContent(webview: vscode.Webview) {
     // In development, files are in src/webview
     // In production (bundled extension), files are in dist/webview
-    const webviewPath = this.extensionUri.fsPath.includes("extensions")
-      ? "dist"
-      : "src";
+    const webviewPath = this.extensionUri.fsPath.includes('extensions')
+      ? 'dist'
+      : 'src';
 
     const cssPath = vscode.Uri.joinPath(
       this.extensionUri,
       webviewPath,
-      "webview",
-      "graph.css",
+      'webview',
+      'graph.css',
     );
     const cssUri = webview.asWebviewUri(cssPath);
 
     const codiconPath = vscode.Uri.joinPath(
       this.extensionUri,
-      webviewPath === "dist"
-        ? "dist/codicons"
-        : "node_modules/@vscode/codicons/dist",
-      "codicon.css",
+      webviewPath === 'dist'
+        ? 'dist/codicons'
+        : 'node_modules/@vscode/codicons/dist',
+      'codicon.css',
     );
     const codiconUri = webview.asWebviewUri(codiconPath);
 
     const htmlPath = vscode.Uri.joinPath(
       this.extensionUri,
       webviewPath,
-      "webview",
-      "graph.html",
+      'webview',
+      'graph.html',
     );
-    let html = fs.readFileSync(htmlPath.fsPath, "utf8");
+    let html = fs.readFileSync(htmlPath.fsPath, 'utf8');
 
     // Replace placeholders in the HTML
-    html = html.replace("${cssUri}", cssUri.toString());
-    html = html.replace("${codiconUri}", codiconUri.toString());
+    html = html.replace('${cssUri}', cssUri.toString());
+    html = html.replace('${codiconUri}', codiconUri.toString());
 
     return html;
   }
@@ -257,18 +257,18 @@ export class JJGraphWebview implements vscode.WebviewViewProvider {
 }
 
 export function parseJJLog(output: string): ChangeNode[] {
-  const lines = output.split("\n").filter((line) => line.trim() !== "");
+  const lines = output.split('\n').filter((line) => line.trim() !== '');
   const changeNodes: ChangeNode[] = [];
 
   for (const line of lines) {
     // Use the sentinel to find the start of our data, ignoring graph characters
-    const sentinelIndex = line.indexOf("JJLOGSTART|");
+    const sentinelIndex = line.indexOf('JJLOGSTART|');
     if (sentinelIndex === -1) {
       continue;
     }
 
-    const dataPart = line.substring(sentinelIndex + "JJLOGSTART|".length);
-    const parts = dataPart.split("|");
+    const dataPart = line.substring(sentinelIndex + 'JJLOGSTART|'.length);
+    const parts = dataPart.split('|');
 
     if (parts.length < 13) {
       continue;
@@ -296,36 +296,36 @@ export function parseJJLog(output: string): ChangeNode[] {
     // Filter out redundant branch indicators or clean them up if needed
     // logic for branchType (diamond vs circle)
     let branchType = undefined;
-    if (branchIndicator.trim() === "◆") {
-      branchType = "◆";
-    } else if (branchIndicator.trim() === "@") {
-      branchType = "@";
+    if (branchIndicator.trim() === '◆') {
+      branchType = '◆';
+    } else if (branchIndicator.trim() === '@') {
+      branchType = '@';
     } else {
-      branchType = "○";
+      branchType = '○';
     }
 
     // Parse bookmarks
     const bookmarks =
       bookmarksStr && bookmarksStr.trim().length > 0
-        ? bookmarksStr.split(",").map((b) => b.trim())
+        ? bookmarksStr.split(',').map((b) => b.trim())
         : [];
 
     // Parse parents
     const parentChangeIds =
       parentsStr && parentsStr.trim().length > 0
-        ? parentsStr.split(" ").map((p) => p.trim())
+        ? parentsStr.split(' ').map((p) => p.trim())
         : [];
 
     // Handle empty commits and missing descriptions
     if (!description || description.trim().length === 0) {
-      description = "(no description set)";
+      description = '(no description set)';
     }
 
-    if (isEmptyStr.trim() === "true") {
+    if (isEmptyStr.trim() === 'true') {
       description = `(empty) ${description}`;
     }
 
-    const isImmutable = isImmutableStr.trim() === "true";
+    const isImmutable = isImmutableStr.trim() === 'true';
 
     // Construct simplified label (though frontend uses description directly now)
     const formattedLabel = `${description}`;

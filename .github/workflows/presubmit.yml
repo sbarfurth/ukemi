@@ -17,7 +17,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ vars.NODE_VERSION }}
-          cache: "npm"
+          cache: 'npm'
 
       - name: Install jj (Jujutsu)
         run: |

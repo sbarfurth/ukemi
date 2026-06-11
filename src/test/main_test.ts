@@ -1,10 +1,10 @@
-import * as assert from "assert";
+import * as assert from 'assert';
 
-import * as vscode from "vscode";
-import { execJJPromise } from "./utils";
+import * as vscode from 'vscode';
+import { execJJPromise } from './utils';
 
-suite("Extension Test Suite", () => {
-  vscode.window.showInformationMessage("Start all tests.");
+suite('Extension Test Suite', () => {
+  vscode.window.showInformationMessage('Start all tests.');
 
   let originalOperation: string;
   suiteSetup(async () => {
@@ -23,7 +23,7 @@ suite("Extension Test Suite", () => {
     await execJJPromise(`operation restore ${originalOperation}`);
   });
 
-  test("Sanity check: `jj status` succeeds", async () => {
-    await assert.doesNotReject(execJJPromise("status"));
+  test('Sanity check: `jj status` succeeds', async () => {
+    await assert.doesNotReject(execJJPromise('status'));
   });
 });

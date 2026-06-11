@@ -11,31 +11,31 @@ import {
   ProviderResult,
   workspace,
   ThemeIcon,
-} from "vscode";
-import { ChangeWithDetails } from "./jj/types";
-import { JJRepository } from "./jj/repository";
-import path from "path";
+} from 'vscode';
+import { ChangeWithDetails } from './jj/types';
+import { JJRepository } from './jj/repository';
+import path from 'path';
 
 function getChangeDescription(change: ChangeWithDetails): TreeItemLabel {
   return {
     label:
-      change.description.split("\n")[0].trim() ||
+      change.description.split('\n')[0].trim() ||
       `[${change.changeId.slice(0, 8)}]`,
   };
 }
 
 function getChangeTooltip(change: ChangeWithDetails): MarkdownString {
-  const str = new MarkdownString(change.description || "(no description)");
+  const str = new MarkdownString(change.description || '(no description)');
 
   str.appendMarkdown(`\n\n**Change ID:** ${change.changeId}`);
   str.appendMarkdown(`\n\n**Commit ID:** ${change.commitId}`);
-  str.appendMarkdown(`\n\n**Author:** ${change.author.name || "(unknown)"}`);
+  str.appendMarkdown(`\n\n**Author:** ${change.author.name || '(unknown)'}`);
   if (change.author.email) {
     str.appendMarkdown(` \\<${change.author.email}\\>`);
   }
   str.appendMarkdown(`\n\n**Date:** ${change.authoredDate}`);
   if (change.bookmarks && change.bookmarks.length > 0) {
-    str.appendMarkdown(`\n\n**Bookmarks:** ${change.bookmarks.join(", ")}`);
+    str.appendMarkdown(`\n\n**Bookmarks:** ${change.bookmarks.join(', ')}`);
   }
 
   return str;
@@ -48,7 +48,7 @@ export class GraphTreeView {
   private readonly graphTreeView: TreeView<GraphTreeItem>;
 
   constructor(private readonly treeDataProvider: GraphTreeDataProvider) {
-    this.graphTreeView = window.createTreeView<GraphTreeItem>("jjGraph", {
+    this.graphTreeView = window.createTreeView<GraphTreeItem>('jjGraph', {
       treeDataProvider: this.treeDataProvider,
     });
     this.updateTitle(this.treeDataProvider.getSelectedRepo().repositoryRoot);
@@ -100,15 +100,15 @@ export class GraphTreeItem extends TreeItem {
     this.id = this.change.changeId;
     this.iconPath = this.getIcon();
     if (this.change.isEmpty) {
-      this.description = "empty";
+      this.description = 'empty';
     }
     if (!this.change.isImmutable) {
-      this.contextValue = "mutable";
+      this.contextValue = 'mutable';
     }
     this.tooltip = getChangeTooltip(change);
     this.command = {
-      command: "jj.update",
-      title: "Update",
+      command: 'jj.update',
+      title: 'Update',
       arguments: [this],
     };
   }
@@ -145,13 +145,13 @@ export class GraphTreeItem extends TreeItem {
 
   private getIcon(): ThemeIcon | undefined {
     if (this.change.isImmutable) {
-      return new ThemeIcon("lock");
+      return new ThemeIcon('lock');
     }
     if (!this.change.isSynced) {
-      return new ThemeIcon("cloud-upload");
+      return new ThemeIcon('cloud-upload');
     }
     if (this.change.bookmarks.length > 0) {
-      return new ThemeIcon("bookmark");
+      return new ThemeIcon('bookmark');
     }
     return undefined;
   }
@@ -191,12 +191,12 @@ export class GraphTreeDataProvider implements TreeDataProvider<GraphTreeItem> {
   async refresh(treeView: TreeView<GraphTreeItem>) {
     const prev = [...this.items];
 
-    const graphConfig = workspace.getConfiguration("ukemi.graph");
+    const graphConfig = workspace.getConfiguration('ukemi.graph');
     const useConfigLogRevset = graphConfig.get<boolean>(
-      "useConfigLogRevset",
+      'useConfigLogRevset',
       false,
     );
-    const revset = graphConfig.get<string>("revset", "::");
+    const revset = graphConfig.get<string>('revset', '::');
 
     const results = await this.selectedRepository.showAll(
       useConfigLogRevset ? [] : [revset],
