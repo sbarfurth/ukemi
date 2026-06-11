@@ -222,6 +222,16 @@
         "command": "jj.commit",
         "title": "Commit changes",
         "category": "Jujutsu"
+      },
+      {
+        "command": "jj.copyPath",
+        "title": "Copy Path",
+        "category": "Jujutsu"
+      },
+      {
+        "command": "jj.copyRelativePath",
+        "title": "Copy Relative Path",
+        "category": "Jujutsu"
       }
     ],
     "menus": {
@@ -385,6 +395,16 @@
           "command": "jj.squashToWorkingCopyResourceState",
           "when": "scmProvider == jj && scmResourceGroup != @",
           "group": "inline"
+        },
+        {
+          "command": "jj.copyPath",
+          "when": "scmProvider == jj",
+          "group": "1_copypath@1"
+        },
+        {
+          "command": "jj.copyRelativePath",
+          "when": "scmProvider == jj",
+          "group": "1_copypath@1"
         }
       ],
       "scm/resourceFolder/context": [
@@ -402,6 +422,16 @@
           "command": "jj.squashToWorkingCopyResourceState",
           "when": "scmProvider == jj && scmResourceGroup != @",
           "group": "inline"
+        },
+        {
+          "command": "jj.copyPath",
+          "when": "scmProvider == jj",
+          "group": "1_copypath@1"
+        },
+        {
+          "command": "jj.copyRelativePath",
+          "when": "scmProvider == jj",
+          "group": "1_copypath@1"
         }
       ],
       "commandPalette": [
