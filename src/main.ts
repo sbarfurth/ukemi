@@ -1452,6 +1452,28 @@ export async function activate(context: vscode.ExtensionContext) {
       ),
     );
 
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
+        'jj.copyPath',
+        async (resourceState: vscode.SourceControlResourceState) => {
+          await vscode.env.clipboard.writeText(
+            resourceState.resourceUri.fsPath,
+          );
+        },
+      ),
+    );
+
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
+        'jj.copyRelativePath',
+        async (resourceState: vscode.SourceControlResourceState) => {
+          await vscode.env.clipboard.writeText(
+            vscode.workspace.asRelativePath(resourceState.resourceUri),
+          );
+        },
+      ),
+    );
+
     isInitialized = true;
   }
 
