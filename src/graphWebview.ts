@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
-import type { JJRepository } from "./repository";
+import type { JJRepository } from "./jj/repository";
 import path from "path";
 import { getGraphConfig } from "./config";
 

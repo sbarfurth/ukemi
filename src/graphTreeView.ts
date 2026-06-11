@@ -12,7 +12,8 @@ import {
   workspace,
   ThemeIcon,
 } from "vscode";
-import { ChangeWithDetails, JJRepository } from "./repository";
+import { ChangeWithDetails } from "./jj/types";
+import { JJRepository } from "./jj/repository";
 import path from "path";
 
 function getChangeDescription(change: ChangeWithDetails): TreeItemLabel {

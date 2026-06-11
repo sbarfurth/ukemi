@@ -2,5 +2,5 @@
 // so they are included in the single bundle that Mocha will run.
 
 import "./main.test";
-import "./repository.test";
+import "./jj/repository.test";
 import "./fakeeditor.test";

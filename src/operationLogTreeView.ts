@@ -7,7 +7,8 @@ import {
   window,
   MarkdownString,
 } from "vscode";
-import { JJRepository, Operation } from "./repository";
+import { JJRepository } from "./jj/repository";
+import { Operation } from "./jj/types";
 import path from "path";
 
 export class OperationLogManager {

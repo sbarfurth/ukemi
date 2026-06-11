@@ -13,7 +13,7 @@ import {
   workspace,
 } from "vscode";
 import { getParams } from "./uri";
-import type { WorkspaceSourceControlManager } from "./repository";
+import type { WorkspaceSourceControlManager } from "./scm/workspace";
 import {
   createThrottledAsyncFn,
   eventToPromise,

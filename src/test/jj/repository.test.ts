@@ -1,16 +1,11 @@
+import { parseRenamePaths } from "../../jj/parser";
 import * as assert from "assert/strict";
-import {
-  parseRenamePaths,
-  JJRepository,
-  Change,
-  FileStatus,
-  Show,
-  ChangeWithDetails,
-} from "../repository"; // Adjust path as needed
-import { getJJPath, getRepoAuthor, getRepoPath } from "./utils";
+import { JJRepository } from "../../jj/repository";
+import { Change, FileStatus, Show, ChangeWithDetails } from "../../jj/types";
+import { getJJPath, getRepoAuthor, getRepoPath } from "../utils";
 import fs from "fs/promises";
 import path from "path";
-import { SemVer } from "../semver";
+import { SemVer } from "../../semver";
 
 suite("JJRepository", () => {
   let suiteDir: string;

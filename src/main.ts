@@ -1,8 +1,10 @@
 import * as vscode from "vscode";
 import path from "path";
-import "./repository";
-import { initExtensionDir, WorkspaceSourceControlManager } from "./repository";
-import type { JJRepository, ChangeWithDetails, FileStatus } from "./repository";
+
+import { initExtensionDir } from "./env";
+import { WorkspaceSourceControlManager } from "./scm/workspace";
+import type { JJRepository } from "./jj/repository";
+import type { ChangeWithDetails, FileStatus } from "./jj/types";
 import { JJDecorationProvider } from "./decorationProvider";
 import {
   OperationLogManager,
