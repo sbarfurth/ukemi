@@ -1,5 +1,14 @@
 # Change Log
 
+## 0.0.12
+
+* adds compact mode by @sesceu in https://github.com/sbarfurth/ukemi/pull/51
+* bugfix: ensure @ is shown even on repos without additional workspaces. by @sesceu in https://github.com/sbarfurth/ukemi/pull/52
+* Use --no-integrate-operation on background queries. by @sbarfurth in https://github.com/sbarfurth/ukemi/pull/55
+* Allow copying file paths in SCM view. by @sbarfurth in https://github.com/sbarfurth/ukemi/pull/58
+
+**Full Changelog**: https://github.com/sbarfurth/ukemi/compare/0.0.11...0.0.12
+
 ## 0.0.11
 
 - Prevent switching the view to SCM view after changes. by @sbarfurth in https://github.com/sbarfurth/ukemi/pull/47
