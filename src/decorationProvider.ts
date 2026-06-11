@@ -6,7 +6,7 @@ import {
   Event,
   ThemeColor,
 } from "vscode";
-import { FileStatus, FileStatusType } from "./repository";
+import { FileStatus, FileStatusType } from "./jj/types";
 import { getParams, toJJUri } from "./uri";
 
 const colorOfType = (type: FileStatusType) => {

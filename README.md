@@ -13,8 +13,8 @@ Feel free to contribute to the extension.
 
 ### Requirements
 
-* [Node.js](https://nodejs.org/en) 22
-* [zig](https://ziglang.org/) 15.2
+- [Node.js](https://nodejs.org/en) 22
+- [zig](https://ziglang.org/) 15.2
 
 ### Setup
 

@@ -1,8 +1,6 @@
 import * as vscode from "vscode";
-import {
-  provideOriginalResource,
-  WorkspaceSourceControlManager,
-} from "./repository";
+import { provideOriginalResource } from "./scm/utils";
+import { WorkspaceSourceControlManager } from "./scm/workspace";
 import { getParams } from "./uri";
 import { pathEquals } from "./utils";
 import path from "path";
