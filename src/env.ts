@@ -79,6 +79,7 @@ export async function prepareFakeeditor(): Promise<{
       } catch (error) {
         throw new Error(
           `Failed to write signal file '${signalFilePath}': ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error },
         );
       }
     },
@@ -88,6 +89,7 @@ export async function prepareFakeeditor(): Promise<{
       } catch (error) {
         throw new Error(
           `Failed to cleanup signal directory '${signalDir}': ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error },
         );
       }
     },

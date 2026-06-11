@@ -757,26 +757,27 @@
     "format": "prettier --write ."
   },
   "devDependencies": {
-    "@types/cross-spawn": "^6.0.6",
-    "@types/mocha": "^10.0.10",
-    "@types/node": "^22.13.0",
-    "@types/vscode": "^1.96.0",
-    "@types/which": "^3.0.4",
-    "@vscode/test-cli": "^0.0.12",
-    "@vscode/test-electron": "^2.5.2",
-    "esbuild": "^0.27.2",
-    "eslint": "^9.39.2",
-    "globals": "^17.0.0",
-    "npm-run-all": "^4.1.5",
-    "prettier": "3.8.0",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.53.1"
+    "@eslint/js": "10.0.1",
+    "@types/cross-spawn": "6.0.6",
+    "@types/mocha": "10.0.10",
+    "@types/node": "22.17.0",
+    "@types/vscode": "1.96.0",
+    "@types/which": "3.0.4",
+    "@vscode/test-cli": "0.0.12",
+    "@vscode/test-electron": "3.0.0",
+    "esbuild": "0.28.0",
+    "eslint": "10.4.1",
+    "globals": "17.6.0",
+    "npm-run-all": "4.1.5",
+    "prettier": "3.8.4",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.61.0"
   },
   "dependencies": {
-    "@vscode/codicons": "^0.0.44",
-    "ansi-regex": "^6.2.2",
-    "arktype": "^2.1.29",
-    "cross-spawn": "^7.0.6",
-    "which": "^6.0.0"
+    "@vscode/codicons": "0.0.45",
+    "ansi-regex": "6.2.2",
+    "arktype": "2.2.0",
+    "cross-spawn": "7.0.6",
+    "which": "7.0.0"
   }
 }
