@@ -11,16 +11,16 @@ import {
   window,
   FileChangeType,
   workspace,
-} from "vscode";
-import { getParams } from "./uri";
-import type { WorkspaceSourceControlManager } from "./scm/workspace";
+} from 'vscode';
+import { getParams } from './uri';
+import type { WorkspaceSourceControlManager } from './scm/workspace';
 import {
   createThrottledAsyncFn,
   eventToPromise,
   filterEvent,
   isDescendant,
   pathEquals,
-} from "./utils";
+} from './utils';
 
 interface CacheRow {
   uri: Uri;
@@ -87,7 +87,7 @@ export class JJFileSystemProvider implements FileSystemProvider {
     for (const row of this.cache.values()) {
       const path = row.uri.fsPath;
       const isOpen = workspace.textDocuments
-        .filter((d) => d.uri.scheme === "file")
+        .filter((d) => d.uri.scheme === 'file')
         .some((d) => pathEquals(d.uri.fsPath, path));
 
       if (isOpen || now - row.timestamp < THREE_MINUTES) {
@@ -114,11 +114,11 @@ export class JJFileSystemProvider implements FileSystemProvider {
   }
 
   readDirectory(): Thenable<[string, FileType][]> {
-    throw new Error("Method not implemented.");
+    throw new Error('Method not implemented.');
   }
 
   createDirectory(): void {
-    throw new Error("Method not implemented.");
+    throw new Error('Method not implemented.');
   }
 
   async readFile(uri: Uri): Promise<Uint8Array> {
@@ -134,7 +134,7 @@ export class JJFileSystemProvider implements FileSystemProvider {
 
     this.cache.set(uri.toString(), cacheValue);
 
-    if ("diffOriginalRev" in params) {
+    if ('diffOriginalRev' in params) {
       const originalContent = await repository.getDiffOriginal(
         params.diffOriginalRev,
         uri.fsPath,
@@ -147,7 +147,7 @@ export class JJFileSystemProvider implements FileSystemProvider {
           );
           return data;
         } catch (e) {
-          if (e instanceof Error && e.message.includes("No such path")) {
+          if (e instanceof Error && e.message.includes('No such path')) {
             throw FileSystemError.FileNotFound();
           }
           throw e;
@@ -159,7 +159,7 @@ export class JJFileSystemProvider implements FileSystemProvider {
         const data = await repository.readFile(params.rev, uri.fsPath);
         return data;
       } catch (e) {
-        if (e instanceof Error && e.message.includes("No such path")) {
+        if (e instanceof Error && e.message.includes('No such path')) {
           throw FileSystemError.FileNotFound();
         }
         throw e;
@@ -168,14 +168,14 @@ export class JJFileSystemProvider implements FileSystemProvider {
   }
 
   writeFile(): void {
-    throw new Error("Method not implemented.");
+    throw new Error('Method not implemented.');
   }
 
   delete(): void {
-    throw new Error("Method not implemented.");
+    throw new Error('Method not implemented.');
   }
 
   rename(): void {
-    throw new Error("Method not implemented.");
+    throw new Error('Method not implemented.');
   }
 }

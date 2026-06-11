@@ -1,20 +1,20 @@
-import * as vscode from "vscode";
-import { provideOriginalResource } from "./scm/utils";
-import { WorkspaceSourceControlManager } from "./scm/workspace";
-import { getParams } from "./uri";
-import { pathEquals } from "./utils";
-import path from "path";
+import * as vscode from 'vscode';
+import { provideOriginalResource } from './scm/utils';
+import { WorkspaceSourceControlManager } from './scm/workspace';
+import { getParams } from './uri';
+import { pathEquals } from './utils';
+import path from 'path';
 
 export async function openFile(uri: vscode.Uri): Promise<void> {
   try {
-    if (!["file", "jj"].includes(uri.scheme)) {
+    if (!['file', 'jj'].includes(uri.scheme)) {
       return undefined;
     }
 
-    let rev = "@";
-    if (uri.scheme === "jj") {
+    let rev = '@';
+    if (uri.scheme === 'jj') {
       const params = getParams(uri);
-      if ("diffOriginalRev" in params) {
+      if ('diffOriginalRev' in params) {
         rev = params.diffOriginalRev;
       } else {
         rev = params.rev;
@@ -22,14 +22,14 @@ export async function openFile(uri: vscode.Uri): Promise<void> {
     }
 
     await vscode.commands.executeCommand(
-      "vscode.open",
+      'vscode.open',
       uri,
       {},
       `${path.basename(uri.fsPath)} (${rev.substring(0, 8)})`,
     );
   } catch (error) {
     vscode.window.showErrorMessage(
-      `Failed to open file${error instanceof Error ? `: ${error.message}` : ""}`,
+      `Failed to open file${error instanceof Error ? `: ${error.message}` : ''}`,
     );
   }
 }
@@ -41,13 +41,13 @@ export async function openDiff(
   try {
     const originalUri = provideOriginalResource(uri);
     if (!originalUri) {
-      throw new Error("Original resource not found");
+      throw new Error('Original resource not found');
     }
 
     const params = getParams(originalUri);
-    if (!("diffOriginalRev" in params)) {
+    if (!('diffOriginalRev' in params)) {
       throw new Error(
-        "Original resource does not have a diffOriginalRev. This is a bug.",
+        'Original resource does not have a diffOriginalRev. This is a bug.',
       );
     }
 
@@ -57,12 +57,12 @@ export async function openDiff(
       workspaceSCM.getRepositorySourceControlManagerFromUri(originalUri);
 
     if (!scm) {
-      throw new Error("Source Control Manager not found with given URI.");
+      throw new Error('Source Control Manager not found with given URI.');
     }
 
     const repo = workspaceSCM.getRepositoryFromUri(originalUri);
     if (!repo) {
-      throw new Error("Repository could not be found with given URI.");
+      throw new Error('Repository could not be found with given URI.');
     }
 
     const { fileStatuses } = await repo.show(rev);
@@ -71,19 +71,19 @@ export async function openDiff(
     );
 
     const diffTitleSuffix =
-      rev === "@" ? "(Working Copy)" : `(${rev.substring(0, 8)})`;
+      rev === '@' ? '(Working Copy)' : `(${rev.substring(0, 8)})`;
     await vscode.commands.executeCommand(
-      "vscode.diff",
+      'vscode.diff',
       originalUri,
       // Always open the editable working copy on the right rather than the
       // resource URI, which may be from a past revision.
       vscode.Uri.file(uri.fsPath),
-      (fileStatus?.renamedFrom ? `${fileStatus.renamedFrom} => ` : "") +
+      (fileStatus?.renamedFrom ? `${fileStatus.renamedFrom} => ` : '') +
         `${path.relative(repo.repositoryRoot, originalUri.path)} ${diffTitleSuffix}`,
     );
   } catch (error) {
     vscode.window.showErrorMessage(
-      `Failed to open diff${error instanceof Error ? `: ${error.message}` : ""}`,
+      `Failed to open diff${error instanceof Error ? `: ${error.message}` : ''}`,
     );
   }
 }

@@ -1,18 +1,18 @@
-import * as vscode from "vscode";
-import path from "path";
-import { JJDecorationProvider } from "../decorationProvider";
-import { JJFileSystemProvider } from "../fileSystemProvider";
-import { SemVer } from "../semver";
+import * as vscode from 'vscode';
+import path from 'path';
+import { JJDecorationProvider } from '../decoration_provider';
+import { JJFileSystemProvider } from '../file_system_provider';
+import { SemVer } from '../semver';
 import {
   getJJPath,
   getJJVersion,
   getConfigArgs,
   spawnJJ,
   handleCommand,
-} from "../jj/cli";
-import { getLogger } from "../logger";
-import { extensionDir } from "../env";
-import { RepositorySourceControlManager } from "./repository";
+} from '../jj/cli';
+import { getLogger } from '../logger';
+import { extensionDir } from '../env';
+import { RepositorySourceControlManager } from './repository';
 
 export class WorkspaceSourceControlManager {
   repoInfos:
@@ -44,7 +44,7 @@ export class WorkspaceSourceControlManager {
     this.subscriptions.push(this.fileSystemProvider);
     this.subscriptions.push(
       vscode.workspace.registerFileSystemProvider(
-        "jj",
+        'jj',
         this.fileSystemProvider,
         {
           isReadonly: true,
@@ -72,7 +72,7 @@ export class WorkspaceSourceControlManager {
 
         const repoRoot = (
           await handleCommand(
-            spawnJJ(jjPath.filepath, ["root"], {
+            spawnJJ(jjPath.filepath, ['root'], {
               timeout: 5000,
               cwd: workspaceFolder.uri.fsPath,
             }),
@@ -82,7 +82,7 @@ export class WorkspaceSourceControlManager {
           .trim();
 
         const repoUri = vscode.Uri.file(
-          repoRoot.replace(/^\\\\\?\\UNC\\/, "\\\\"),
+          repoRoot.replace(/^\\\\\?\\UNC\\/, '\\\\'),
         ).toString();
 
         if (!newRepoInfos.has(repoUri)) {
@@ -94,7 +94,7 @@ export class WorkspaceSourceControlManager {
           });
         }
       } catch (e) {
-        if (e instanceof Error && e.message.includes("no jj repo in")) {
+        if (e instanceof Error && e.message.includes('no jj repo in')) {
           getLogger().debug(`No jj repo in ${workspaceFolder.uri.fsPath}`);
         } else {
           getLogger().error(
@@ -114,7 +114,7 @@ export class WorkspaceSourceControlManager {
       } else if (
         !oldValue.jjVersion.equals(value.jjVersion) ||
         oldValue.jjPath.filepath !== value.jjPath.filepath ||
-        oldValue.jjConfigArgs.join(" ") !== value.jjConfigArgs.join(" ") ||
+        oldValue.jjConfigArgs.join(' ') !== value.jjConfigArgs.join(' ') ||
         oldValue.repoRoot !== value.repoRoot
       ) {
         isAnyRepoChanged = true;
@@ -168,7 +168,7 @@ export class WorkspaceSourceControlManager {
 
   getRepositoryFromUri(uri: vscode.Uri) {
     return this.repoSCMs.find((repo) => {
-      return !path.relative(repo.repositoryRoot, uri.fsPath).startsWith("..");
+      return !path.relative(repo.repositoryRoot, uri.fsPath).startsWith('..');
     })?.repository;
   }
 
@@ -190,7 +190,7 @@ export class WorkspaceSourceControlManager {
 
   getRepositorySourceControlManagerFromUri(uri: vscode.Uri) {
     return this.repoSCMs.find((repo) => {
-      return !path.relative(repo.repositoryRoot, uri.fsPath).startsWith("..");
+      return !path.relative(repo.repositoryRoot, uri.fsPath).startsWith('..');
     });
   }
 
@@ -226,7 +226,7 @@ export class WorkspaceSourceControlManager {
       }
     }
 
-    throw new Error("Resource state not found in any resource group");
+    throw new Error('Resource state not found in any resource group');
   }
 
   dispose() {

@@ -1,16 +1,16 @@
-import { exec } from "child_process";
+import { exec } from 'child_process';
 
 /**
  * Gets the jj executable path to use in tests.
  * Uses environment variable JJ_PATH if set, otherwise defaults to "jj".
  */
 export function getJJPath(): string {
-  return process.env.JJ_PATH || "jj";
+  return process.env.JJ_PATH || 'jj';
 }
 
 export function execPromise(
   command: string,
-  options?: Parameters<typeof exec>["1"],
+  options?: Parameters<typeof exec>['1'],
 ): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     exec(command, { timeout: 1000, ...options }, (error, stdout, stderr) => {
@@ -28,7 +28,7 @@ export function execPromise(
  */
 export function execJJPromise(
   args: string,
-  options?: Parameters<typeof exec>["1"],
+  options?: Parameters<typeof exec>['1'],
 ): Promise<{ stdout: string; stderr: string }> {
   const jjPath = getJJPath();
   const command = `${jjPath} ${args}`;
@@ -42,7 +42,7 @@ export function execJJPromise(
 export function getRepoPath(): string {
   const repoPath = process.env.TEST_REPO_PATH;
   if (!repoPath) {
-    throw new Error("TEST_REPO_PATH environment variable is not set");
+    throw new Error('TEST_REPO_PATH environment variable is not set');
   }
   return repoPath;
 }
@@ -60,8 +60,8 @@ export interface Author {
 export function getRepoAuthor(): Author {
   const repoAuthor = process.env.TEST_REPO_AUTHOR;
   if (!repoAuthor) {
-    throw new Error("TEST_REPO_AUTHOR environment variable is not set");
+    throw new Error('TEST_REPO_AUTHOR environment variable is not set');
   }
-  const [name, email] = repoAuthor.split(":");
+  const [name, email] = repoAuthor.split(':');
   return { name, email };
 }

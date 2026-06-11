@@ -1,18 +1,18 @@
-import path from "path";
-import { Change, FileStatus, RepositoryStatus } from "./types";
+import path from 'path';
+import { Change, FileStatus, RepositoryStatus } from './types';
 
 export async function parseJJStatus(
   repositoryRoot: string,
   output: string,
   immutableChangeIds: ReadonlySet<string>,
 ): Promise<RepositoryStatus> {
-  const lines = output.split("\n");
+  const lines = output.split('\n');
   const fileStatuses: FileStatus[] = [];
   const conflictedFiles = new Set<string>();
   let workingCopy: Change = {
-    changeId: "",
-    commitId: "",
-    description: "",
+    changeId: '',
+    commitId: '',
+    description: '',
     isEmpty: false,
     isConflict: false,
     isImmutable: false,
@@ -31,16 +31,16 @@ export async function parseJJStatus(
     const ansiStrippedTrimmedLine = await stripAnsiCodes(trimmedLine);
 
     if (
-      ansiStrippedTrimmedLine === "" ||
-      ansiStrippedTrimmedLine.startsWith("Working copy changes:") ||
-      ansiStrippedTrimmedLine.startsWith("The working copy is clean")
+      ansiStrippedTrimmedLine === '' ||
+      ansiStrippedTrimmedLine.startsWith('Working copy changes:') ||
+      ansiStrippedTrimmedLine.startsWith('The working copy is clean')
     ) {
       continue;
     }
 
     if (
       ansiStrippedTrimmedLine.includes(
-        "There are unresolved conflicts at these paths:",
+        'There are unresolved conflicts at these paths:',
       )
     ) {
       isParsingConflicts = true;
@@ -49,7 +49,7 @@ export async function parseJJStatus(
 
     if (isParsingConflicts) {
       const regions = await extractColoredRegions(trimmedLine);
-      let filePath = "";
+      let filePath = '';
       let firstColoredRegionIndex = -1;
       for (let i = 0; i < regions.length; i++) {
         if (regions[i].colored) {
@@ -60,14 +60,14 @@ export async function parseJJStatus(
       }
       filePath = filePath.trim();
 
-      if (ansiStrippedTrimmedLine.includes("To resolve the conflicts")) {
+      if (ansiStrippedTrimmedLine.includes('To resolve the conflicts')) {
         isParsingConflicts = false;
         continue;
       }
 
       // If filePath is non-empty and we found a colored region after it, it's a conflict line
       if (filePath && firstColoredRegionIndex !== -1) {
-        const normalizedFile = path.normalize(filePath).replace(/\\/g, "/");
+        const normalizedFile = path.normalize(filePath).replace(/\\/g, '/');
         conflictedFiles.add(path.join(repositoryRoot, normalizedFile));
       } else {
         isParsingConflicts = false;
@@ -78,7 +78,7 @@ export async function parseJJStatus(
     if (changeMatch) {
       const [_, type, file] = changeMatch;
 
-      if (type === "R" || type === "C") {
+      if (type === 'R' || type === 'C') {
         const parsedPaths = parseRenamePaths(file);
         if (parsedPaths) {
           fileStatuses.push({
@@ -89,13 +89,13 @@ export async function parseJJStatus(
           });
         } else {
           throw new Error(
-            `Unexpected ${type === "R" ? "rename" : "copy"} line: ${line}`,
+            `Unexpected ${type === 'R' ? 'rename' : 'copy'} line: ${line}`,
           );
         }
       } else {
-        const normalizedFile = path.normalize(file).replace(/\\/g, "/");
+        const normalizedFile = path.normalize(file).replace(/\\/g, '/');
         fileStatuses.push({
-          type: type as "A" | "M" | "D",
+          type: type as 'A' | 'M' | 'D',
           file: normalizedFile,
           path: path.join(repositoryRoot, normalizedFile),
         });
@@ -126,14 +126,14 @@ export async function parseJJStatus(
       const cleanedDescription = descriptionRegions
         .filter((region) => !region.colored)
         .map((region) => region.text)
-        .join("")
+        .join('')
         .trim();
       const jjDescriptors = descriptionRegions
         .filter((region) => region.colored)
         .map((region) => region.text)
-        .join("");
-      const isEmpty = jjDescriptors.includes("(empty)");
-      const isConflict = jjDescriptors.includes("(conflict)");
+        .join('');
+      const isEmpty = jjDescriptors.includes('(empty)');
+      const isConflict = jjDescriptors.includes('(conflict)');
 
       const cleanedChangeId = await stripAnsiCodes(changeId);
 
@@ -149,9 +149,9 @@ export async function parseJJStatus(
         isImmutable: immutableChangeIds.has(cleanedChangeId),
       };
 
-      if ((await stripAnsiCodes(type)) === "Working copy") {
+      if ((await stripAnsiCodes(type)) === 'Working copy') {
         workingCopy = commitDetails;
-      } else if ((await stripAnsiCodes(type)) === "Parent commit") {
+      } else if ((await stripAnsiCodes(type)) === 'Parent commit') {
         parentCommits.push(commitDetails);
       }
       continue;
@@ -167,7 +167,7 @@ export async function parseJJStatus(
 }
 
 export async function extractColoredRegions(input: string) {
-  const { default: ansiRegex } = await import("ansi-regex");
+  const { default: ansiRegex } = await import('ansi-regex');
   const regex = ansiRegex();
   let isColored = false;
   const result: { text: string; colored: boolean }[] = [];
@@ -187,7 +187,7 @@ export async function extractColoredRegions(input: string) {
 
     const code = match[0];
     // Update color state
-    if (code === "\x1b[0m" || code === "\x1b[39m") {
+    if (code === '\x1b[0m' || code === '\x1b[39m') {
       isColored = false;
     } else if (
       // standard foreground colors (30–37)
@@ -218,9 +218,9 @@ export async function extractColoredRegions(input: string) {
 }
 
 export async function stripAnsiCodes(input: string) {
-  const { default: ansiRegex } = await import("ansi-regex");
+  const { default: ansiRegex } = await import('ansi-regex');
   const regex = ansiRegex();
-  return input.replace(regex, "");
+  return input.replace(regex, '');
 }
 
 const renameRegex = /^(.*)\{\s*(.*?)\s*=>\s*(.*?)\s*\}(.*)$/;
@@ -233,13 +233,13 @@ export function parseRenamePaths(
     const [_, prefix, fromPart, toPart, suffix] = renameMatch;
     const rawFromPath = prefix + fromPart + suffix;
     const rawToPath = prefix + toPart + suffix;
-    const fromPath = path.normalize(rawFromPath).replace(/\\/g, "/");
-    const toPath = path.normalize(rawToPath).replace(/\\/g, "/");
+    const fromPath = path.normalize(rawFromPath).replace(/\\/g, '/');
+    const toPath = path.normalize(rawToPath).replace(/\\/g, '/');
     return { fromPath, toPath };
   }
   return null;
 }
 
 export function filepathToFileset(filepath: string): string {
-  return `file:"${filepath.replaceAll(/\\/g, "\\\\")}"`;
+  return `file:"${filepath.replaceAll(/\\/g, '\\\\')}"`;
 }

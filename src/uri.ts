@@ -1,11 +1,11 @@
-import { Uri } from "vscode";
-import { type } from "arktype";
+import { Uri } from 'vscode';
+import { type } from 'arktype';
 
-const RevUriParams = type({ rev: "string" });
+const RevUriParams = type({ rev: 'string' });
 const DiffOriginalRevUriParams = type({
-  diffOriginalRev: "string",
+  diffOriginalRev: 'string',
 });
-const JJUriParams = type(RevUriParams, "|", DiffOriginalRevUriParams);
+const JJUriParams = type(RevUriParams, '|', DiffOriginalRevUriParams);
 
 export type JJUriParams = typeof JJUriParams.infer;
 
@@ -14,18 +14,18 @@ export type JJUriParams = typeof JJUriParams.infer;
  */
 export function toJJUri(uri: Uri, params: JJUriParams): Uri {
   return uri.with({
-    scheme: "jj",
+    scheme: 'jj',
     query: JSON.stringify(params),
   });
 }
 
 export function getParams(uri: Uri): JJUriParams {
-  if (uri.query === "") {
-    throw new Error("URI has no query");
+  if (uri.query === '') {
+    throw new Error('URI has no query');
   }
   const parsed = JJUriParams(JSON.parse(uri.query));
   if (parsed instanceof type.errors) {
-    throw new Error("URI query is not JJUriParams");
+    throw new Error('URI query is not JJUriParams');
   }
   return parsed;
 }

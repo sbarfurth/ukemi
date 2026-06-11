@@ -1,8 +1,8 @@
-import { sep } from "path";
-import { Event, Disposable, window, TabInputTextDiff } from "vscode";
+import { sep } from 'path';
+import { Event, Disposable, window, TabInputTextDiff } from 'vscode';
 
-export const isMacintosh = process.platform === "darwin";
-export const isWindows = process.platform === "win32";
+export const isMacintosh = process.platform === 'darwin';
+export const isWindows = process.platform === 'win32';
 
 export function dispose<T extends Disposable>(disposables: T[]): T[] {
   disposables.forEach((d) => void d.dispose());
@@ -124,7 +124,7 @@ export function createThrottledAsyncFn<T, A extends unknown[]>(
   let queuedRunPromise: Promise<T> | null = null;
   let queuedRunResolver: ((value: T) => void) | null = null;
   let queuedRunRejector:
-    | Parameters<ConstructorParameters<typeof Promise>["0"]>["1"]
+    | Parameters<ConstructorParameters<typeof Promise>['0']>['1']
     | null = null;
 
   const throttledFn = (...args: A): Promise<T> => {

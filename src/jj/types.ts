@@ -3,7 +3,7 @@ export interface ShowTemplateField {
   setter?: (value: string, show: Show) => void;
 }
 
-export type FileStatusType = "A" | "M" | "D" | "R" | "C";
+export type FileStatusType = 'A' | 'M' | 'D' | 'R' | 'C';
 
 export type FileStatus = {
   type: FileStatusType;

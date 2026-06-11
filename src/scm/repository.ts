@@ -1,13 +1,13 @@
-import * as vscode from "vscode";
-import path from "path";
-import { anyEvent } from "../utils";
-import { JJDecorationProvider } from "../decorationProvider";
-import { JJFileSystemProvider } from "../fileSystemProvider";
-import { SemVer } from "../semver";
-import { JJRepository } from "../jj/repository";
-import { RepositoryStatus, FileStatus, Change, Show } from "../jj/types";
-import { toJJUri } from "../uri";
-import { provideOriginalResource, getResourceStateCommand } from "./utils";
+import * as vscode from 'vscode';
+import path from 'path';
+import { anyEvent } from '../utils';
+import { JJDecorationProvider } from '../decoration_provider';
+import { JJFileSystemProvider } from '../file_system_provider';
+import { SemVer } from '../semver';
+import { JJRepository } from '../jj/repository';
+import { RepositoryStatus, FileStatus, Change, Show } from '../jj/types';
+import { toJJUri } from '../uri';
+import { provideOriginalResource, getResourceStateCommand } from './utils';
 
 export class RepositorySourceControlManager {
   subscriptions: {
@@ -45,25 +45,25 @@ export class RepositorySourceControlManager {
     );
 
     this.sourceControl = vscode.scm.createSourceControl(
-      "jj",
+      'jj',
       path.basename(repositoryRoot),
       vscode.Uri.file(repositoryRoot),
     );
     this.subscriptions.push(this.sourceControl);
 
     this.workingCopyResourceGroup = this.sourceControl.createResourceGroup(
-      "@",
-      "Working Copy",
+      '@',
+      'Working Copy',
     );
     this.subscriptions.push(this.workingCopyResourceGroup);
 
     // Set up the SourceControlInputBox
-    this.sourceControl.inputBox.placeholder = "Message (press {0} to commit)";
+    this.sourceControl.inputBox.placeholder = 'Message (press {0} to commit)';
 
     // Link the acceptInputCommand to the SourceControl instance
     this.sourceControl.acceptInputCommand = {
-      command: "jj.commit",
-      title: "Commit changes",
+      command: 'jj.commit',
+      title: 'Commit changes',
       arguments: [this.sourceControl],
     };
 
@@ -73,8 +73,8 @@ export class RepositorySourceControlManager {
 
     const watcherOperations = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(
-        path.join(this.repositoryRoot, ".jj/repo/op_store/operations"),
-        "*",
+        path.join(this.repositoryRoot, '.jj/repo/op_store/operations'),
+        '*',
       ),
     );
     this.subscriptions.push(watcherOperations);
@@ -129,10 +129,10 @@ export class RepositorySourceControlManager {
   async updateState(status: RepositoryStatus) {
     const newParentShowResults = new Map<string, Show>();
     const newFileStatusesByChange = new Map<string, FileStatus[]>([
-      ["@", status.fileStatuses],
+      ['@', status.fileStatuses],
     ]);
     const newConflictedFilesByChange = new Map<string, Set<string>>([
-      ["@", status.conflictedFiles],
+      ['@', status.conflictedFiles],
     ]);
 
     // Only check for tracked files in store backends we know. Unknown backends
@@ -182,32 +182,32 @@ export class RepositorySourceControlManager {
 
   static getLabel(prefix: string, change: Change) {
     return `${prefix} ${
-      change.description ? ` • ${change.description}` : ""
-    }${change.isEmpty ? " (empty)" : ""}${
-      change.isConflict ? " (conflict)" : ""
-    }${change.description ? "" : " (no description)"}`;
+      change.description ? ` • ${change.description}` : ''
+    }${change.isEmpty ? ' (empty)' : ''}${
+      change.isConflict ? ' (conflict)' : ''
+    }${change.description ? '' : ' (no description)'}`;
   }
 
   render() {
     if (!this.status?.workingCopy) {
       throw new Error(
-        "Cannot render source control without a current working copy change.",
+        'Cannot render source control without a current working copy change.',
       );
     }
 
-    this.workingCopyResourceGroup.label = "Working Copy";
+    this.workingCopyResourceGroup.label = 'Working Copy';
     this.workingCopyResourceGroup.resourceStates = this.status.fileStatuses.map(
       (fileStatus) => {
         return {
           resourceUri: vscode.Uri.file(fileStatus.path),
           decorations: {
-            strikeThrough: fileStatus.type === "D",
+            strikeThrough: fileStatus.type === 'D',
             tooltip: path.basename(fileStatus.file),
           },
           command: getResourceStateCommand(
             fileStatus,
             toJJUri(vscode.Uri.file(`${fileStatus.path}`), {
-              diffOriginalRev: "@",
+              diffOriginalRev: '@',
             }),
             vscode.Uri.file(fileStatus.path),
           ),
@@ -225,7 +225,7 @@ export class RepositorySourceControlManager {
         group.dispose();
       } else {
         group.label = RepositorySourceControlManager.getLabel(
-          "Parent Commit",
+          'Parent Commit',
           parentChange,
         );
         updatedGroups.push(group);
@@ -245,7 +245,7 @@ export class RepositorySourceControlManager {
         parentChangeResourceGroup = this.sourceControl.createResourceGroup(
           parentChange.changeId,
           RepositorySourceControlManager.getLabel(
-            "Parent Commit",
+            'Parent Commit',
             parentChange,
           ),
         );
@@ -263,7 +263,7 @@ export class RepositorySourceControlManager {
                 rev: parentChange.changeId,
               }),
               decorations: {
-                strikeThrough: parentStatus.type === "D",
+                strikeThrough: parentStatus.type === 'D',
                 tooltip: path.basename(parentStatus.file),
               },
               command: getResourceStateCommand(

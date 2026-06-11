@@ -5,20 +5,20 @@ import {
   EventEmitter,
   Event,
   ThemeColor,
-} from "vscode";
-import { FileStatus, FileStatusType } from "./jj/types";
-import { getParams, toJJUri } from "./uri";
+} from 'vscode';
+import { FileStatus, FileStatusType } from './jj/types';
+import { getParams, toJJUri } from './uri';
 
 const colorOfType = (type: FileStatusType) => {
   switch (type) {
-    case "A":
-      return new ThemeColor("jjDecoration.addedResourceForeground");
-    case "M":
-      return new ThemeColor("jjDecoration.modifiedResourceForeground");
-    case "D":
-      return new ThemeColor("jjDecoration.deletedResourceForeground");
-    case "R":
-      return new ThemeColor("jjDecoration.modifiedResourceForeground");
+    case 'A':
+      return new ThemeColor('jjDecoration.addedResourceForeground');
+    case 'M':
+      return new ThemeColor('jjDecoration.modifiedResourceForeground');
+    case 'D':
+      return new ThemeColor('jjDecoration.deletedResourceForeground');
+    case 'R':
+      return new ThemeColor('jjDecoration.modifiedResourceForeground');
   }
 };
 
@@ -50,7 +50,7 @@ export class JJDecorationProvider implements FileDecorationProvider {
     trackedFiles: Set<string> | null,
     conflictedFiles: Map<string, Set<string>>,
   ) {
-    if (trackedFiles && process.platform === "win32") {
+    if (trackedFiles && process.platform === 'win32') {
       trackedFiles = convertSetToLowercase(trackedFiles);
     }
     const nextDecorations = new Map<string, FileDecoration>();
@@ -70,9 +70,9 @@ export class JJDecorationProvider implements FileDecorationProvider {
         const existingDecoration = nextDecorations.get(key);
         if (!existingDecoration) {
           nextDecorations.set(key, {
-            badge: "!",
+            badge: '!',
             color: new ThemeColor(
-              "gitDecoration.conflictingResourceForeground",
+              'gitDecoration.conflictingResourceForeground',
             ),
           });
         } else {
@@ -80,7 +80,7 @@ export class JJDecorationProvider implements FileDecorationProvider {
             ...existingDecoration,
             badge: `${existingDecoration.badge}!`,
             color: new ThemeColor(
-              "gitDecoration.conflictingResourceForeground",
+              'gitDecoration.conflictingResourceForeground',
             ),
           });
         }
@@ -136,7 +136,7 @@ export class JJDecorationProvider implements FileDecorationProvider {
       ...[...changedDecorationKeys.keys()]
         .filter((key) => {
           const { rev } = parseKey(key);
-          return rev === "@";
+          return rev === '@';
         })
         .map((key) => {
           const { fsPath } = parseKey(key);
@@ -151,13 +151,13 @@ export class JJDecorationProvider implements FileDecorationProvider {
   provideFileDecoration(uri: Uri): FileDecoration | undefined {
     if (!this.hasData) {
       throw new Error(
-        "provideFileDecoration was called before data was available",
+        'provideFileDecoration was called before data was available',
       );
     }
-    let rev = "@";
-    if (uri.scheme === "jj") {
+    let rev = '@';
+    if (uri.scheme === 'jj') {
       const params = getParams(uri);
-      if ("diffOriginalRev" in params) {
+      if ('diffOriginalRev' in params) {
         // It doesn't make sense to show a decoration for the left side of a diff, even if that left side is a
         // single rev, because we never show the left side of a diff by itself; it'll always be part of a diff view.
         return undefined;
@@ -165,15 +165,15 @@ export class JJDecorationProvider implements FileDecorationProvider {
       rev = params.rev;
     }
     const key = getKey(uri.fsPath, rev);
-    if (rev === "@" && !this.decorations.has(key)) {
+    if (rev === '@' && !this.decorations.has(key)) {
       const fsPath =
-        process.platform === "win32" ? uri.fsPath.toLowerCase() : uri.fsPath;
+        process.platform === 'win32' ? uri.fsPath.toLowerCase() : uri.fsPath;
       // Only mark files as ignored with a decoration if file tracking is
       // enabled and tracked files is not `null`. Otherwise all files are
       // assumed to be tracked.
       if (this.trackedFiles && !this.trackedFiles.has(fsPath)) {
         return {
-          color: new ThemeColor("jjDecoration.ignoredResourceForeground"),
+          color: new ThemeColor('jjDecoration.ignoredResourceForeground'),
         };
       }
     }
@@ -182,7 +182,7 @@ export class JJDecorationProvider implements FileDecorationProvider {
 }
 
 function getKey(fsPath: string, rev: string) {
-  fsPath = process.platform === "win32" ? fsPath.toLowerCase() : fsPath;
+  fsPath = process.platform === 'win32' ? fsPath.toLowerCase() : fsPath;
   return JSON.stringify({ fsPath, rev });
 }
 
@@ -194,7 +194,7 @@ function convertSetToLowercase<T>(originalSet: Set<T>): Set<T> {
   const lowercaseSet = new Set<T>();
 
   for (const item of originalSet) {
-    if (typeof item === "string") {
+    if (typeof item === 'string') {
       lowercaseSet.add(item.toLowerCase() as unknown as T);
     } else {
       lowercaseSet.add(item);

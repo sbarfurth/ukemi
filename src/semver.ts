@@ -27,7 +27,7 @@ export class SemVer {
     if (!match) {
       return SemVer.default();
     }
-    const parts = match[0].split(".");
+    const parts = match[0].split('.');
     if (parts.length !== 3) {
       return SemVer.default();
     }

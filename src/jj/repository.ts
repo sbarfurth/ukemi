@@ -1,19 +1,19 @@
-import spawn from "cross-spawn";
-import { pathEquals } from "../utils";
-import fs from "fs/promises";
-import path from "path";
-import * as vscode from "vscode";
-import { SemVer } from "../semver";
+import spawn from 'cross-spawn';
+import { pathEquals } from '../utils';
+import fs from 'fs/promises';
+import path from 'path';
+import * as vscode from 'vscode';
+import { SemVer } from '../semver';
 import {
   spawnJJ,
   handleJJCommand,
   ImmutableError,
   convertJJErrors,
-} from "./cli";
-import { parseJJStatus, parseRenamePaths, filepathToFileset } from "./parser";
-import { RepositoryStatus, Show, Operation, ShowTemplateField } from "./types";
-import { getLogger } from "../logger";
-import { fakeEditorPath, prepareFakeeditor } from "../env";
+} from './cli';
+import { parseJJStatus, parseRenamePaths, filepathToFileset } from './parser';
+import { RepositoryStatus, Show, Operation, ShowTemplateField } from './types';
+import { getLogger } from '../logger';
+import { fakeEditorPath, prepareFakeeditor } from '../env';
 
 export class JJRepository {
   statusCache: RepositoryStatus | undefined;
@@ -40,10 +40,10 @@ export class JJRepository {
       return this.isKnownStoreBackendCache;
     }
     let storeType: string;
-    if (this.jjVersion.isAtLeast(SemVer.parse("0.42.0"))) {
+    if (this.jjVersion.isAtLeast(SemVer.parse('0.42.0'))) {
       storeType = (
         await handleJJCommand(
-          this.spawnJJ(["util", "backend", "name"], {
+          this.spawnJJ(['util', 'backend', 'name'], {
             timeout: 5000,
             cwd: this.repositoryRoot,
           }),
@@ -52,7 +52,7 @@ export class JJRepository {
     } else {
       const root = (
         await handleJJCommand(
-          this.spawnJJ(["root"], {
+          this.spawnJJ(['root'], {
             timeout: 5000,
             cwd: this.repositoryRoot,
           }),
@@ -61,11 +61,11 @@ export class JJRepository {
         .toString()
         .trim();
       storeType = await fs.readFile(
-        path.join(root, ".jj/repo/store/type"),
-        "utf8",
+        path.join(root, '.jj/repo/store/type'),
+        'utf8',
       );
     }
-    this.isKnownStoreBackendCache = ["git", "simple"].includes(
+    this.isKnownStoreBackendCache = ['git', 'simple'].includes(
       storeType.trim().toLowerCase(),
     );
     return this.isKnownStoreBackendCache;
@@ -77,19 +77,19 @@ export class JJRepository {
    */
   async getLatestOperationId(options: { noIntegrate?: boolean } = {}) {
     const args = [
-      "operation",
-      "log",
-      "--limit",
-      "1",
-      "-T",
-      "self.id()",
-      "--no-graph",
+      'operation',
+      'log',
+      '--limit',
+      '1',
+      '-T',
+      'self.id()',
+      '--no-graph',
     ];
     if (
       options.noIntegrate &&
-      this.jjVersion.isAtLeast(SemVer.parse("0.41.0"))
+      this.jjVersion.isAtLeast(SemVer.parse('0.41.0'))
     ) {
-      args.unshift("--no-integrate-operation");
+      args.unshift('--no-integrate-operation');
     }
     return (
       await handleJJCommand(
@@ -113,17 +113,17 @@ export class JJRepository {
     }
 
     const logArgs = [
-      "log",
-      "-r",
-      "immutable_heads()",
-      "-T",
-      "change_id.short(8)",
+      'log',
+      '-r',
+      'immutable_heads()',
+      '-T',
+      'change_id.short(8)',
     ];
     if (
       options.noIntegrate &&
-      this.jjVersion.isAtLeast(SemVer.parse("0.41.0"))
+      this.jjVersion.isAtLeast(SemVer.parse('0.41.0'))
     ) {
-      logArgs.unshift("--no-integrate-operation");
+      logArgs.unshift('--no-integrate-operation');
     }
 
     const immutableOutput = (
@@ -136,19 +136,19 @@ export class JJRepository {
     ).toString();
     const changeIdLinePattern = /^.*([k-z]{8})$/;
     const immutableChangeIds = new Set<string>();
-    for (const line of immutableOutput.split("\n").filter(Boolean)) {
+    for (const line of immutableOutput.split('\n').filter(Boolean)) {
       const match = line.match(changeIdLinePattern);
       if (match) {
         immutableChangeIds.add(match[1]);
       }
     }
 
-    const statusArgs = ["status", "--color=always"];
+    const statusArgs = ['status', '--color=always'];
     if (
       options.noIntegrate &&
-      this.jjVersion.isAtLeast(SemVer.parse("0.41.0"))
+      this.jjVersion.isAtLeast(SemVer.parse('0.41.0'))
     ) {
-      statusArgs.unshift("--no-integrate-operation");
+      statusArgs.unshift('--no-integrate-operation');
     }
 
     const statusOutput = (
@@ -180,12 +180,12 @@ export class JJRepository {
   }
 
   async fileList(options: { noIntegrate?: boolean } = {}) {
-    const args = ["file", "list"];
+    const args = ['file', 'list'];
     if (
       options.noIntegrate &&
-      this.jjVersion.isAtLeast(SemVer.parse("0.41.0"))
+      this.jjVersion.isAtLeast(SemVer.parse('0.41.0'))
     ) {
-      args.unshift("--no-integrate-operation");
+      args.unshift('--no-integrate-operation');
     }
     return (
       await handleJJCommand(
@@ -197,16 +197,16 @@ export class JJRepository {
     )
       .toString()
       .trim()
-      .split("\n");
+      .split('\n');
   }
 
   async show(rev: string, options: { noIntegrate?: boolean } = {}) {
     const results = await this.showAll([rev], options);
     if (results.length > 1) {
-      throw new Error("Multiple results found for the given revision.");
+      throw new Error('Multiple results found for the given revision.');
     }
     if (results.length === 0) {
-      throw new Error("No results found for the given revision.");
+      throw new Error('No results found for the given revision.');
     }
     return results[0];
   }
@@ -215,33 +215,33 @@ export class JJRepository {
     revsets: string[],
     options: { noIntegrate?: boolean } = {},
   ): Promise<Show[]> {
-    const revSeparator = "__ඞඞ__\n";
-    const fieldSeparator = "__ඞ__";
-    const summarySeparator = "@?!"; // characters that are illegal in filepaths
+    const revSeparator = '__ඞඞ__\n';
+    const fieldSeparator = '__ඞ__';
+    const summarySeparator = '@?!'; // characters that are illegal in filepaths
     const isConflictDetectionSupported = this.jjVersion.isAtLeast(
-      SemVer.parse("0.26.0"),
+      SemVer.parse('0.26.0'),
     );
     const templateFields: ShowTemplateField[] = [
       {
-        template: "change_id",
+        template: 'change_id',
         setter: (value, show) => {
           show.change.changeId = value;
         },
       },
       {
-        template: "commit_id",
+        template: 'commit_id',
         setter: (value, show) => {
           show.change.commitId = value;
         },
       },
       {
-        template: "author.name()",
+        template: 'author.name()',
         setter: (value, show) => {
           show.change.author.name = value;
         },
       },
       {
-        template: "author.email()",
+        template: 'author.email()',
         setter: (value, show) => {
           show.change.author.email = value;
         },
@@ -256,7 +256,7 @@ export class JJRepository {
         template: 'parents.map(|p| p.change_id()).join(",")',
         setter: (value, show) => {
           show.change.parentChangeIds = value
-            .split(",")
+            .split(',')
             .map((id) => id.trim())
             .filter(Boolean);
         },
@@ -265,45 +265,45 @@ export class JJRepository {
         template: 'bookmarks.map(|b| b.name()).join(",")',
         setter: (value, show) => {
           show.change.bookmarks = value
-            .split(",")
+            .split(',')
             .map((s) => s.trim())
             .filter(Boolean);
         },
       },
       {
-        template: "description",
+        template: 'description',
         setter: (value, show) => {
           show.change.description = value;
         },
       },
       {
-        template: "immutable",
+        template: 'immutable',
         setter: (value, show) => {
-          show.change.isImmutable = value === "true";
+          show.change.isImmutable = value === 'true';
         },
       },
       {
-        template: "empty",
+        template: 'empty',
         setter: (value, show) => {
-          show.change.isEmpty = value === "true";
+          show.change.isEmpty = value === 'true';
         },
       },
       {
-        template: "conflict",
+        template: 'conflict',
         setter: (value, show) => {
-          show.change.isConflict = value === "true";
+          show.change.isConflict = value === 'true';
         },
       },
       {
-        template: "current_working_copy",
+        template: 'current_working_copy',
         setter: (value, show) => {
-          show.change.isCurrentWorkingCopy = value === "true";
+          show.change.isCurrentWorkingCopy = value === 'true';
         },
       },
       {
-        template: "bookmarks.all(|b| b.synced())",
+        template: 'bookmarks.all(|b| b.synced())',
         setter: (value, show) => {
-          show.change.isSynced = value === "true";
+          show.change.isSynced = value === 'true';
         },
       },
     ];
@@ -312,7 +312,7 @@ export class JJRepository {
         template: `diff.files().map(|entry| entry.status() ++ "${summarySeparator}" ++ entry.source().path().display() ++ "${summarySeparator}" ++ entry.target().path().display() ++ "${summarySeparator}" ++ entry.target().conflict()).join("\n")`,
       });
     } else {
-      templateFields.push({ template: "diff.summary()" });
+      templateFields.push({ template: 'diff.summary()' });
     }
     const template =
       templateFields
@@ -320,18 +320,18 @@ export class JJRepository {
         .join(` ++ "${fieldSeparator}" ++ `) + ` ++ "${revSeparator}"`;
 
     const logArgs = [
-      "log",
-      "-T",
+      'log',
+      '-T',
       template,
-      "--no-graph",
-      "--no-pager",
-      ...revsets.flatMap((revset) => ["-r", revset]),
+      '--no-graph',
+      '--no-pager',
+      ...revsets.flatMap((revset) => ['-r', revset]),
     ];
     if (
       options.noIntegrate &&
-      this.jjVersion.isAtLeast(SemVer.parse("0.41.0"))
+      this.jjVersion.isAtLeast(SemVer.parse('0.41.0'))
     ) {
-      logArgs.unshift("--no-integrate-operation");
+      logArgs.unshift('--no-integrate-operation');
     }
 
     const output = (
@@ -354,21 +354,21 @@ export class JJRepository {
       const fields = revResult.split(fieldSeparator);
       if (fields.length > templateFields.length) {
         throw new Error(
-          "Separator found in a field value. This is not supported.",
+          'Separator found in a field value. This is not supported.',
         );
       } else if (fields.length < templateFields.length) {
-        throw new Error("Missing fields in the output.");
+        throw new Error('Missing fields in the output.');
       }
       const ret: Show = {
         change: {
-          changeId: "",
-          commitId: "",
-          description: "",
+          changeId: '',
+          commitId: '',
+          description: '',
           author: {
-            email: "",
-            name: "",
+            email: '',
+            name: '',
           },
-          authoredDate: "",
+          authoredDate: '',
           parentChangeIds: [],
           bookmarks: [],
           isEmpty: false,
@@ -389,24 +389,24 @@ export class JJRepository {
           templateField.setter(value, ret);
         } else {
           const changeRegex = /^(A|M|D|R|C) (.+)$/;
-          for (const line of value.split("\n").filter(Boolean)) {
+          for (const line of value.split('\n').filter(Boolean)) {
             if (isConflictDetectionSupported) {
               const [status, rawSourcePath, rawTargetPath, conflict] =
                 line.split(summarySeparator);
               const sourcePath = path
                 .normalize(rawSourcePath)
-                .replace(/\\/g, "/");
+                .replace(/\\/g, '/');
               const targetPath = path
                 .normalize(rawTargetPath)
-                .replace(/\\/g, "/");
+                .replace(/\\/g, '/');
               if (
-                ["modified", "added", "removed", "copied", "renamed"].includes(
+                ['modified', 'added', 'removed', 'copied', 'renamed'].includes(
                   status,
                 )
               ) {
-                if (status === "renamed" || status === "copied") {
+                if (status === 'renamed' || status === 'copied') {
                   ret.fileStatuses.push({
-                    type: status === "renamed" ? "R" : "C",
+                    type: status === 'renamed' ? 'R' : 'C',
                     file: targetPath,
                     path: path.join(this.repositoryRoot, targetPath),
                     renamedFrom: sourcePath,
@@ -414,16 +414,16 @@ export class JJRepository {
                 } else {
                   ret.fileStatuses.push({
                     type:
-                      status === "added"
-                        ? "A"
-                        : status === "removed"
-                          ? "D"
-                          : "M",
+                      status === 'added'
+                        ? 'A'
+                        : status === 'removed'
+                          ? 'D'
+                          : 'M',
                     file: targetPath,
                     path: path.join(this.repositoryRoot, targetPath),
                   });
                 }
-                if (conflict === "true") {
+                if (conflict === 'true') {
                   ret.conflictedFiles.add(
                     path.join(this.repositoryRoot, targetPath),
                   );
@@ -436,7 +436,7 @@ export class JJRepository {
               if (changeMatch) {
                 const [_, type, file] = changeMatch;
 
-                if (type === "R" || type === "C") {
+                if (type === 'R' || type === 'C') {
                   const parsedPaths = parseRenamePaths(file);
                   if (parsedPaths) {
                     ret.fileStatuses.push({
@@ -447,15 +447,15 @@ export class JJRepository {
                     });
                   } else {
                     throw new Error(
-                      `Unexpected ${type === "R" ? "rename" : "copy"} line: ${line}`,
+                      `Unexpected ${type === 'R' ? 'rename' : 'copy'} line: ${line}`,
                     );
                   }
                 } else {
                   const normalizedFile = path
                     .normalize(file)
-                    .replace(/\\/g, "/");
+                    .replace(/\\/g, '/');
                   ret.fileStatuses.push({
-                    type: type as "A" | "M" | "D",
+                    type: type as 'A' | 'M' | 'D',
                     file: normalizedFile,
                     path: path.join(this.repositoryRoot, normalizedFile),
                   });
@@ -475,7 +475,7 @@ export class JJRepository {
   readFile(rev: string, filepath: string) {
     return handleJJCommand(
       this.spawnJJ(
-        ["file", "show", "--revision", rev, filepathToFileset(filepath)],
+        ['file', 'show', '--revision', rev, filepathToFileset(filepath)],
         {
           timeout: 5000,
           cwd: this.repositoryRoot,
@@ -489,7 +489,7 @@ export class JJRepository {
       return await this.describe(rev, message);
     } catch (e) {
       if (e instanceof ImmutableError) {
-        const choice = await vscode.window.showQuickPick(["Continue"], {
+        const choice = await vscode.window.showQuickPick(['Continue'], {
           title: `${rev} is immutable, are you sure?`,
         });
         if (!choice) {
@@ -506,11 +506,11 @@ export class JJRepository {
       await handleJJCommand(
         this.spawnJJ(
           [
-            "describe",
-            "-m",
+            'describe',
+            '-m',
             message,
             rev,
-            ...(ignoreImmutable ? ["--ignore-immutable"] : []),
+            ...(ignoreImmutable ? ['--ignore-immutable'] : []),
           ],
           {
             timeout: 5000,
@@ -526,9 +526,9 @@ export class JJRepository {
       return await handleJJCommand(
         this.spawnJJ(
           [
-            "new",
+            'new',
             ...(revs ? [...revs] : []),
-            ...(message ? ["-m", message] : []),
+            ...(message ? ['-m', message] : []),
           ],
           {
             timeout: 5000,
@@ -556,9 +556,9 @@ export class JJRepository {
       return await handleJJCommand(
         this.spawnJJ(
           [
-            "commit",
-            ...(revset ? ["-r", revset] : []),
-            ...(message ? ["-m", message] : []),
+            'commit',
+            ...(revset ? ['-r', revset] : []),
+            ...(message ? ['-m', message] : []),
           ],
           {
             timeout: 5000,
@@ -601,7 +601,7 @@ export class JJRepository {
       });
     } catch (e) {
       if (e instanceof ImmutableError) {
-        const choice = await vscode.window.showQuickPick(["Continue"], {
+        const choice = await vscode.window.showQuickPick(['Continue'], {
           title: `${toRev} is immutable, are you sure?`,
         });
         if (!choice) {
@@ -636,16 +636,16 @@ export class JJRepository {
       await handleJJCommand(
         this.spawnJJ(
           [
-            "squash",
-            "--from",
+            'squash',
+            '--from',
             fromRev,
-            "--into",
+            '--into',
             toRev,
-            ...(message ? ["-m", message] : []),
+            ...(message ? ['-m', message] : []),
             ...(filepaths
               ? filepaths.map((filepath) => filepathToFileset(filepath))
               : []),
-            ...(ignoreImmutable ? ["--ignore-immutable"] : []),
+            ...(ignoreImmutable ? ['--ignore-immutable'] : []),
           ],
           {
             timeout: 5000,
@@ -676,7 +676,7 @@ export class JJRepository {
       });
     } catch (e) {
       if (e instanceof ImmutableError) {
-        const choice = await vscode.window.showQuickPick(["Continue"], {
+        const choice = await vscode.window.showQuickPick(['Continue'], {
           title: `${toRev} is immutable, are you sure?`,
         });
         if (!choice) {
@@ -720,16 +720,16 @@ export class JJRepository {
     return new Promise<void>((resolve, reject) => {
       const childProcess = this.spawnJJ(
         [
-          "squash",
-          "--from",
+          'squash',
+          '--from',
           fromRev,
-          "--into",
+          '--into',
           toRev,
-          "--interactive",
-          "--tool",
+          '--interactive',
+          '--tool',
           `${fakeEditorPath}`,
-          "--use-destination-message",
-          ...(ignoreImmutable ? ["--ignore-immutable"] : []),
+          '--use-destination-message',
+          ...(ignoreImmutable ? ['--ignore-immutable'] : []),
         ],
         {
           timeout: 10_000, // Ensure this is longer than fakeeditor's internal timeout
@@ -738,10 +738,10 @@ export class JJRepository {
         },
       );
 
-      let fakeEditorOutputBuffer = "";
-      const FAKEEDITOR_SENTINEL = "FAKEEDITOR_OUTPUT_END\n";
+      let fakeEditorOutputBuffer = '';
+      const FAKEEDITOR_SENTINEL = 'FAKEEDITOR_OUTPUT_END\n';
 
-      childProcess.stdout!.on("data", (data: Buffer) => {
+      childProcess.stdout!.on('data', (data: Buffer) => {
         fakeEditorOutputBuffer += data.toString();
 
         if (!fakeEditorOutputBuffer.includes(FAKEEDITOR_SENTINEL)) {
@@ -754,7 +754,7 @@ export class JJRepository {
           fakeEditorOutputBuffer.indexOf(FAKEEDITOR_SENTINEL),
         );
 
-        const lines = output.trim().split("\n");
+        const lines = output.trim().split('\n');
         const fakeEditorPID = lines[0];
         const fakeEditorCWD = lines[1];
         // lines[2] is the fakeeditor executable path
@@ -764,10 +764,10 @@ export class JJRepository {
         if (lines.length !== 5) {
           if (fakeEditorPID) {
             try {
-              process.kill(parseInt(fakeEditorPID), "SIGTERM");
+              process.kill(parseInt(fakeEditorPID), 'SIGTERM');
             } catch (killError) {
               getLogger().error(
-                `Failed to kill fakeeditor (PID: ${fakeEditorPID}) after validation error: ${killError instanceof Error ? killError : ""}`,
+                `Failed to kill fakeeditor (PID: ${fakeEditorPID}) after validation error: ${killError instanceof Error ? killError : ''}`,
               );
             }
           }
@@ -780,16 +780,16 @@ export class JJRepository {
           !fakeEditorPID ||
           !fakeEditorCWD ||
           !leftFolderPath ||
-          !leftFolderPath.endsWith("left") ||
+          !leftFolderPath.endsWith('left') ||
           !rightFolderPath ||
-          !rightFolderPath.endsWith("right")
+          !rightFolderPath.endsWith('right')
         ) {
           if (fakeEditorPID) {
             try {
-              process.kill(parseInt(fakeEditorPID), "SIGTERM");
+              process.kill(parseInt(fakeEditorPID), 'SIGTERM');
             } catch (killError) {
               getLogger().error(
-                `Failed to kill fakeeditor (PID: ${fakeEditorPID}) after validation error: ${killError instanceof Error ? killError : ""}`,
+                `Failed to kill fakeeditor (PID: ${fakeEditorPID}) after validation error: ${killError instanceof Error ? killError : ''}`,
               );
             }
           }
@@ -824,10 +824,10 @@ export class JJRepository {
           .catch((error) => {
             if (fakeEditorPID) {
               try {
-                process.kill(parseInt(fakeEditorPID), "SIGTERM");
+                process.kill(parseInt(fakeEditorPID), 'SIGTERM');
               } catch (killError) {
                 getLogger().error(
-                  `Failed to send SIGTERM to fakeeditor (PID: ${fakeEditorPID}) during error handling: ${killError instanceof Error ? killError : ""}`,
+                  `Failed to send SIGTERM to fakeeditor (PID: ${fakeEditorPID}) during error handling: ${killError instanceof Error ? killError : ''}`,
                 );
               }
             }
@@ -836,12 +836,12 @@ export class JJRepository {
           });
       });
 
-      let errOutput = "";
-      childProcess.stderr!.on("data", (data: Buffer) => {
+      let errOutput = '';
+      childProcess.stderr!.on('data', (data: Buffer) => {
         errOutput += data.toString();
       });
 
-      childProcess.on("close", (code, signal) => {
+      childProcess.on('close', (code, signal) => {
         void cleanup();
         if (code) {
           reject(
@@ -863,8 +863,8 @@ export class JJRepository {
   }
 
   async log(
-    rev: string | null = "::",
-    template: string = "builtin_log_compact",
+    rev: string | null = '::',
+    template: string = 'builtin_log_compact',
     limit: number = 50,
     noGraph: boolean = false,
   ) {
@@ -872,14 +872,14 @@ export class JJRepository {
       await handleJJCommand(
         this.spawnJJ(
           [
-            "log",
-            ...(rev !== null ? ["-r", rev] : []),
-            "-n",
+            'log',
+            ...(rev !== null ? ['-r', rev] : []),
+            '-n',
             limit.toString(),
-            "-T",
+            '-T',
             template,
-            "--color=never",
-            ...(noGraph ? ["--no-graph"] : []),
+            '--color=never',
+            ...(noGraph ? ['--no-graph'] : []),
           ],
           {
             timeout: 5000,
@@ -895,7 +895,7 @@ export class JJRepository {
       return await this.edit(rev);
     } catch (e) {
       if (e instanceof ImmutableError) {
-        const choice = await vscode.window.showQuickPick(["Continue"], {
+        const choice = await vscode.window.showQuickPick(['Continue'], {
           title: `${rev} is immutable, are you sure?`,
         });
         if (!choice) {
@@ -910,7 +910,7 @@ export class JJRepository {
   async edit(rev: string, ignoreImmutable = false) {
     return await handleJJCommand(
       this.spawnJJ(
-        ["edit", "-r", rev, ...(ignoreImmutable ? ["--ignore-immutable"] : [])],
+        ['edit', '-r', rev, ...(ignoreImmutable ? ['--ignore-immutable'] : [])],
         {
           timeout: 5000,
           cwd: this.repositoryRoot,
@@ -924,7 +924,7 @@ export class JJRepository {
       return await this.restore(rev, filepaths);
     } catch (e) {
       if (e instanceof ImmutableError) {
-        const choice = await vscode.window.showQuickPick(["Continue"], {
+        const choice = await vscode.window.showQuickPick(['Continue'], {
           title: `${rev} is immutable, are you sure?`,
         });
         if (!choice) {
@@ -940,13 +940,13 @@ export class JJRepository {
     return await handleJJCommand(
       this.spawnJJ(
         [
-          "restore",
-          "--changes-in",
-          rev ? rev : "@",
+          'restore',
+          '--changes-in',
+          rev ? rev : '@',
           ...(filepaths
             ? filepaths.map((filepath) => filepathToFileset(filepath))
             : []),
-          ...(ignoreImmutable ? ["--ignore-immutable"] : []),
+          ...(ignoreImmutable ? ['--ignore-immutable'] : []),
         ],
         {
           timeout: 5000,
@@ -961,7 +961,7 @@ export class JJRepository {
       this.gitFetchPromise = (async () => {
         try {
           await handleJJCommand(
-            this.spawnJJ(["git", "fetch"], {
+            this.spawnJJ(['git', 'fetch'], {
               timeout: 60_000,
               cwd: this.repositoryRoot,
             }),
@@ -979,9 +979,9 @@ export class JJRepository {
       await handleJJCommand(
         this.spawnJJ(
           [
-            "file",
-            "annotate",
-            "-r",
+            'file',
+            'annotate',
+            '-r',
             rev,
             filepath, // `jj file annotate` takes a path, not a fileset
           ],
@@ -992,24 +992,24 @@ export class JJRepository {
         ),
       )
     ).toString();
-    if (output === "") {
+    if (output === '') {
       return [];
     }
-    const lines = output.trim().split("\n");
-    const changeIdsByLine = lines.map((line) => line.split(" ")[0]);
+    const lines = output.trim().split('\n');
+    const changeIdsByLine = lines.map((line) => line.split(' ')[0]);
     return changeIdsByLine;
   }
 
   async operationLog(): Promise<Operation[]> {
-    const operationSeparator = "__ඞඞ__\n";
-    const fieldSeparator = "__ඞ__";
+    const operationSeparator = '__ඞඞ__\n';
+    const fieldSeparator = '__ඞ__';
     const templateFields = [
-      "self.id()",
-      "self.description()",
-      "self.attributes()",
-      "self.time().start()",
-      "self.user()",
-      "self.snapshot()",
+      'self.id()',
+      'self.description()',
+      'self.attributes()',
+      'self.time().start()',
+      'self.user()',
+      'self.snapshot()',
     ];
     const template =
       templateFields.join(` ++ "${fieldSeparator}" ++ `) +
@@ -1019,14 +1019,14 @@ export class JJRepository {
       await handleJJCommand(
         this.spawnJJ(
           [
-            "operation",
-            "log",
-            "--limit",
-            "10",
-            "--no-graph",
-            "--at-operation=@",
-            "--ignore-working-copy",
-            "-T",
+            'operation',
+            'log',
+            '--limit',
+            '10',
+            '--no-graph',
+            '--at-operation=@',
+            '--ignore-working-copy',
+            '-T',
             template,
           ],
           {
@@ -1043,21 +1043,21 @@ export class JJRepository {
       const results = line.split(fieldSeparator);
       if (results.length > templateFields.length) {
         console.warn(
-          "Separator found in a field value. This is not supported. Operation will be ignored.",
+          'Separator found in a field value. This is not supported. Operation will be ignored.',
         );
         continue;
       } else if (results.length < templateFields.length) {
         console.warn(
-          "Missing fields in the output. Operation will be ignored.",
+          'Missing fields in the output. Operation will be ignored.',
         );
         continue;
       }
       const op: Operation = {
-        id: "",
-        description: "",
-        tags: "",
-        start: "",
-        user: "",
+        id: '',
+        description: '',
+        tags: '',
+        start: '',
+        user: '',
         snapshot: false,
       };
 
@@ -1065,23 +1065,23 @@ export class JJRepository {
         const field = results[i];
         const value = field.trim();
         switch (templateFields[i]) {
-          case "self.id()":
+          case 'self.id()':
             op.id = value;
             break;
-          case "self.description()":
+          case 'self.description()':
             op.description = value;
             break;
-          case "self.attributes()":
+          case 'self.attributes()':
             op.tags = value;
             break;
-          case "self.time().start()":
+          case 'self.time().start()':
             op.start = value;
             break;
-          case "self.user()":
+          case 'self.user()':
             op.user = value;
             break;
-          case "self.snapshot()":
-            op.snapshot = value === "true";
+          case 'self.snapshot()':
+            op.snapshot = value === 'true';
             break;
         }
       }
@@ -1094,7 +1094,7 @@ export class JJRepository {
   async operationUndo(id: string) {
     return (
       await handleJJCommand(
-        this.spawnJJ(["operation", "undo", id], {
+        this.spawnJJ(['operation', 'undo', id], {
           timeout: 5000,
           cwd: this.repositoryRoot,
         }),
@@ -1105,7 +1105,7 @@ export class JJRepository {
   async operationRestore(id: string) {
     return (
       await handleJJCommand(
-        this.spawnJJ(["operation", "restore", id], {
+        this.spawnJJ(['operation', 'restore', id], {
           timeout: 5000,
           cwd: this.repositoryRoot,
         }),
@@ -1128,7 +1128,7 @@ export class JJRepository {
         // in case the file was renamed or copied. If we knew the status of the file, we could
         // pass the previous filename in addition to the current filename upon seeing a rename or copy.
         // We don't have the status though, which is why we're using `--summary` here.
-        ["diff", "--summary", "--tool", `${fakeEditorPath}`, "-r", rev],
+        ['diff', '--summary', '--tool', `${fakeEditorPath}`, '-r', rev],
         {
           timeout: 10_000, // Ensure this is longer than fakeeditor's internal timeout
           cwd: this.repositoryRoot,
@@ -1136,10 +1136,10 @@ export class JJRepository {
         },
       );
 
-      let fakeEditorOutputBuffer = "";
-      const FAKEEDITOR_SENTINEL = "FAKEEDITOR_OUTPUT_END\n";
+      let fakeEditorOutputBuffer = '';
+      const FAKEEDITOR_SENTINEL = 'FAKEEDITOR_OUTPUT_END\n';
 
-      childProcess.stdout!.on("data", (data: Buffer) => {
+      childProcess.stdout!.on('data', (data: Buffer) => {
         fakeEditorOutputBuffer += data.toString();
 
         if (!fakeEditorOutputBuffer.includes(FAKEEDITOR_SENTINEL)) {
@@ -1155,16 +1155,16 @@ export class JJRepository {
       });
 
       const errOutput: Buffer[] = [];
-      childProcess.stderr!.on("data", (data: Buffer) => {
+      childProcess.stderr!.on('data', (data: Buffer) => {
         errOutput.push(data);
       });
 
-      childProcess.on("error", (error: Error) => {
+      childProcess.on('error', (error: Error) => {
         void cleanup();
         reject(new Error(`Spawning command failed: ${error.message}`));
       });
 
-      childProcess.on("close", (code, signal) => {
+      childProcess.on('close', (code, signal) => {
         void cleanup();
         if (code) {
           reject(
@@ -1190,13 +1190,13 @@ export class JJRepository {
       });
     }).catch(convertJJErrors);
 
-    const lines = output.trim().split("\n");
+    const lines = output.trim().split('\n');
     const pidLineIdx =
       lines.findIndex((line) => {
         return line.includes(fakeEditorPath);
       }) - 2;
     if (pidLineIdx < 0) {
-      throw new Error("PID line not found.");
+      throw new Error('PID line not found.');
     }
     if (pidLineIdx + 3 >= lines.length) {
       throw new Error(`Unexpected output from fakeeditor: ${output}`);
@@ -1221,18 +1221,18 @@ export class JJRepository {
         const type = summaryLine.charAt(0);
         const file = summaryLine.slice(2).trim();
 
-        if (type === "M" || type === "D") {
+        if (type === 'M' || type === 'D') {
           const normalizedSummaryPath = path
             .join(this.repositoryRoot, file)
-            .replace(/\\/g, "/");
+            .replace(/\\/g, '/');
           const normalizedTargetPath = path
             .normalize(filepath)
-            .replace(/\\/g, "/");
+            .replace(/\\/g, '/');
           if (pathEquals(normalizedSummaryPath, normalizedTargetPath)) {
             pathInLeftFolder = file;
             break;
           }
-        } else if (type === "R" || type === "C") {
+        } else if (type === 'R' || type === 'C') {
           const parseResult = parseRenamePaths(file);
           if (!parseResult) {
             throw new Error(`Unexpected rename line: ${summaryLineRaw}`);
@@ -1240,10 +1240,10 @@ export class JJRepository {
 
           const normalizedSummaryPath = path
             .join(this.repositoryRoot, parseResult.toPath)
-            .replace(/\\/g, "/");
+            .replace(/\\/g, '/');
           const normalizedTargetPath = path
             .normalize(filepath)
-            .replace(/\\/g, "/");
+            .replace(/\\/g, '/');
           if (pathEquals(normalizedSummaryPath, normalizedTargetPath)) {
             // The file was renamed TO our target filepath, so we need its OLD path from the left folder
             pathInLeftFolder = parseResult.fromPath;
@@ -1270,10 +1270,10 @@ export class JJRepository {
       return undefined;
     } finally {
       try {
-        process.kill(parseInt(fakeEditorPID), "SIGTERM");
+        process.kill(parseInt(fakeEditorPID), 'SIGTERM');
       } catch (killError) {
         getLogger().error(
-          `Failed to kill fakeeditor (PID: ${fakeEditorPID}) in getDiffOriginal: ${killError instanceof Error ? killError : ""}`,
+          `Failed to kill fakeeditor (PID: ${fakeEditorPID}) in getDiffOriginal: ${killError instanceof Error ? killError : ''}`,
         );
       }
     }
@@ -1281,7 +1281,7 @@ export class JJRepository {
 
   async abandon(rev: string) {
     return await handleJJCommand(
-      this.spawnJJ(["abandon", "-r", rev], {
+      this.spawnJJ(['abandon', '-r', rev], {
         timeout: 5000,
         cwd: this.repositoryRoot,
       }),

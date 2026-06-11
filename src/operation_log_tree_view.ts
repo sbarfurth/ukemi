@@ -6,10 +6,10 @@ import {
   TreeView,
   window,
   MarkdownString,
-} from "vscode";
-import { JJRepository } from "./jj/repository";
-import { Operation } from "./jj/types";
-import path from "path";
+} from 'vscode';
+import { JJRepository } from './jj/repository';
+import { Operation } from './jj/types';
+import path from 'path';
 
 export class OperationLogManager {
   subscriptions: {
@@ -21,7 +21,7 @@ export class OperationLogManager {
     public operationLogTreeDataProvider: OperationLogTreeDataProvider,
   ) {
     this.operationLogTreeView = window.createTreeView<OperationTreeItem>(
-      "jjOperationLog",
+      'jjOperationLog',
       {
         treeDataProvider: operationLogTreeDataProvider,
       },
@@ -54,7 +54,7 @@ export class OperationTreeItem extends TreeItem {
     public readonly repositoryRoot: string,
   ) {
     super(
-      operation.tags.startsWith("args: ")
+      operation.tags.startsWith('args: ')
         ? operation.tags.slice(6)
         : operation.tags,
     );

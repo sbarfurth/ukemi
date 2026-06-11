@@ -723,7 +723,7 @@
     "pretest": "npm run compile-tests && npm run compile",
     "check-types": "tsc --noEmit",
     "lint": "eslint src",
-    "test": "node out/test/runTest.js",
+    "test": "node out/test/run_test.js",
     "format": "prettier --write ."
   },
   "devDependencies": {
