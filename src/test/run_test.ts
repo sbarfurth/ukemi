@@ -33,10 +33,10 @@ async function main() {
       cwd: testRepoPath,
     });
     // The initial `jj git init` created an implicit new commit on top of the
-    // root commit (0). This will have the system git author information since
-    // we configured the author after. We can recreate on top of root to apply
-    // the author config from above.
-    await execJJPromise(`new 0`, {
+    // root commit (0000...). This will have the system git author information
+    // since we configured the author after. We can recreate on top of root to
+    // apply the author config from above.
+    await execJJPromise(`new 0000`, {
       cwd: testRepoPath,
     });
 

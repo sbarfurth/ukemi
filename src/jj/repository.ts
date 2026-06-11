@@ -1001,12 +1001,17 @@ export class JJRepository {
   }
 
   async operationLog(): Promise<Operation[]> {
+    // The `tags()` function was deprecated in 0.41.0.
+    const attributesField = this.jjVersion.isAtLeast(SemVer.parse('0.41.0'))
+      ? 'self.attributes()'
+      : 'self.tags()';
+
     const operationSeparator = '__ඞඞ__\n';
     const fieldSeparator = '__ඞ__';
     const templateFields = [
       'self.id()',
       'self.description()',
-      'self.attributes()',
+      attributesField,
       'self.time().start()',
       'self.user()',
       'self.snapshot()',
@@ -1071,7 +1076,7 @@ export class JJRepository {
           case 'self.description()':
             op.description = value;
             break;
-          case 'self.attributes()':
+          case attributesField:
             op.tags = value;
             break;
           case 'self.time().start()':
