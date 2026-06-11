@@ -10,6 +10,7 @@ import {
 import { getJJPath, getRepoAuthor, getRepoPath } from "./utils";
 import fs from "fs/promises";
 import path from "path";
+import { SemVer } from "../semver";
 
 suite("JJRepository", () => {
   let suiteDir: string;
@@ -25,11 +26,16 @@ suite("JJRepository", () => {
   suite("getStatus", () => {
     test("retrieves the status of the jj workspace", async () => {
       const fileName = "file.txt";
-      const relativeFilePath = path.join(path.basename(suiteDir), fileName);
       const filePath = path.join(suiteDir, fileName);
+      const relativeFilePath = path.relative(getRepoPath(), filePath);
 
       await fs.writeFile(filePath, "Initial content");
-      const repo = new JJRepository(getRepoPath(), getJJPath(), "0.37.0", []);
+      const repo = new JJRepository(
+        getRepoPath(),
+        getJJPath(),
+        SemVer.parse("0.42.0"),
+        [],
+      );
 
       const status = await repo.getStatus();
 
@@ -66,12 +72,17 @@ suite("JJRepository", () => {
   suite("showAll", () => {
     test("shows all commits for a revset", async () => {
       const fileName = "file.txt";
-      const relativeFilePath = path.join(path.basename(suiteDir), fileName);
       const filePath = path.join(suiteDir, fileName);
+      const relativeFilePath = path.relative(getRepoPath(), filePath);
       const repoAuthor = getRepoAuthor();
 
       await fs.writeFile(filePath, "Initial content");
-      const repo = new JJRepository(getRepoPath(), getJJPath(), "0.37.0", []);
+      const repo = new JJRepository(
+        getRepoPath(),
+        getJJPath(),
+        SemVer.parse("0.42.0"),
+        [],
+      );
 
       const show = await repo.showAll(["::"]);
 
