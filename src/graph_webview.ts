@@ -295,7 +295,7 @@ export function parseJJLog(output: string): ChangeNode[] {
 
     // Filter out redundant branch indicators or clean them up if needed
     // logic for branchType (diamond vs circle)
-    let branchType = undefined;
+    let branchType: string;
     if (branchIndicator.trim() === '◆') {
       branchType = '◆';
     } else if (branchIndicator.trim() === '@') {

@@ -541,7 +541,7 @@ export class JJRepository {
         const match = error.message.match(/error:\s*([\s\S]+)$/i);
         if (match) {
           const errorMessage = match[1];
-          throw new Error(errorMessage);
+          throw new Error(errorMessage, { cause: error });
         } else {
           throw error;
         }
@@ -571,7 +571,7 @@ export class JJRepository {
         const match = error.message.match(/error:\s*([\s\S]+)$/i);
         if (match) {
           const errorMessage = match[1];
-          throw new Error(errorMessage);
+          throw new Error(errorMessage, { cause: error });
         } else {
           throw error;
         }
